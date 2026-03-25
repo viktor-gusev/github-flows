@@ -1,0 +1,11 @@
+{
+  "name": "@teqfw/github-flows",
+  "version": "1.0.0",
+  "private": true,
+  "description": "AI agent repo",
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "test": "node --test"
+  }
+}
