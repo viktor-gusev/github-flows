@@ -1,0 +1,7 @@
+/.idea/
+/.vscode/
+/**/.env
+/**/node_modules/
+/**/output.md
+/**/tmp/
+/ctx/
