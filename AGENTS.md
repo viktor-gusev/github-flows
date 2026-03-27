@@ -5,15 +5,7 @@
 
 ## Purpose
 
-This root file defines the invariant rules of ADSM (Agent-Driven Software Management), establishes the roles of the Human and the Agent, specifies the structure of the cognitive context, and determines operational constraints; it is read by the agent before any project-level instructions.
-
-## Level Map
-
-- `ctx/` — cognitive context containing documentation, rules, and specifications; entry point: `ctx/AGENTS.md`
-- `AGENTS.md` — root-level invariant rules for agents
-- `README.md` — project description
-
-The exact structure of the project root and its directories is defined within the cognitive context.
+This root file defines the invariant rules of ADSM (Agent-Driven Software Management), establishes the roles of the Human and the Agent, specifies the resolution model of the cognitive context, and determines global operational constraints; it is read by the agent before any project-level instructions.
 
 ## Level Boundary
 
@@ -23,7 +15,7 @@ This level defines:
 - interaction model between Human and Agent
 - roles and responsibilities
 - global execution constraints
-- structure and semantics of the cognitive context
+- cognitive context resolution model
 - rules of consistency between context and product
 - repository separation rules
 - AGENTS.md hierarchy and resolution model
@@ -33,15 +25,16 @@ This level does NOT define:
 - project-specific logic
 - domain-specific documentation
 - implementation details of the product
-- directory structure beyond its minimal invariants
-- local rules inside `ctx/`
+- structure or rules inside `ctx/`
 - task-specific instructions (they come from external prompts)
 
 ## ADSM Principles
 
 ### Project Spaces
 
-A project consists of two interconnected spaces: the **Cognitive Context** (`./ctx/`) and the **Software Product** (all files outside `ctx/`); the context governs modifications of the product, and the product reflects application of the context.
+A project consists of two interconnected spaces: the **Cognitive Context** (located in `./ctx/`) and the **Software Product** (all files outside `ctx/`); the context governs modifications of the product, and the product reflects application of the context.
+
+The cognitive context may exist as a standalone repository but MUST be mounted under `./ctx/` for execution. The location `./ctx/` is the canonical execution location of the cognitive context.
 
 ### Interaction Model
 
@@ -54,7 +47,7 @@ The Human defines goals, maintains the context, and approves changes; the Agent 
 
 ## Context Resolution
 
-Agent behavior is determined exclusively by documents located in `./ctx/`.
+Agent behavior is determined exclusively by documents of the cognitive context (located in `./ctx/`).
 
 The entry point of the cognitive context is:
 
@@ -95,24 +88,26 @@ Violation of these rules constitutes an execution error.
 
 ## AGENTS.md Hierarchy
 
-If additional `AGENTS.md` files exist in subdirectories, they are treated as part of the cognitive context within the boundaries of their directory level.
+If additional `AGENTS.md` files exist in subdirectories, they define local constraints within their directory level.
 
-When executing a task in directory `X`, the working context of the agent is the aggregate of all `AGENTS.md` files along the path from the project root to `X`; deeper levels override higher levels within scope; all files form a coherent rule system; root invariants are mandatory and cannot be overridden.
+When executing a task in directory `X`, the working context of the agent is the aggregate of all `AGENTS.md` files along the path from the project root to `X`.
 
-## Requirements for Local AGENTS.md (Level Maps)
+Rules:
 
-Each `AGENTS.md` inside `ctx/` MUST contain a **Level Map**.
-
-### Invariants
-
-- directories first, then files
-- alphabetical order within each group
-- each element has a declarative purpose
-- `AGENTS.md` MUST be included
-- structure MUST match filesystem
-
-The Level Map defines context boundaries and navigation.
+- deeper levels override higher levels within their scope
+- root-level invariants are mandatory and cannot be overridden
+- all levels must form a coherent and non-contradictory system
 
 ## Compatibility
 
-The root `AGENTS.md` defines methodological invariants and is reused across projects; project-specific rules are defined only within `./ctx/`.
+The root `AGENTS.md` defines methodological invariants and is reused across projects; project-specific rules are defined exclusively within the cognitive context (located in `./ctx/`).
+
+## Change Policy
+
+This file is a template-level definition and is not subject to modification within the project.
+
+- The agent must not modify, replace, delete, or relocate this file
+- The agent must not introduce changes that effectively alter its content or presence in the repository
+- Updates to this file are performed only at the template level and propagated explicitly
+
+Violation of these rules constitutes an execution error.
