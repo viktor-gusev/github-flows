@@ -1,11 +1,61 @@
 {
   "name": "@teqfw/github-flows",
-  "version": "1.0.0",
+  "version": "0.1.0",
   "private": true,
-  "description": "AI agent repo",
-  "license": "MIT",
+  "description": "Event-driven workflows for repository-based agent execution.",
+  "license": "Apache-2.0",
   "type": "module",
+  "engines": {
+    "node": ">= 20"
+  },
+  "author": [
+    {
+      "name": "Alex Gusev",
+      "email": "alex@flancer64.com",
+      "url": "https://github.com/flancer64"
+    },
+    {
+      "name": "Victor Gusev",
+      "email": "viktor@nmmlm.com",
+      "url": "https://github.com/viktor-gusev"
+    }
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/viktor-gusev/github-flows.git"
+  },
+  "homepage": "https://github.com/viktor-gusev/github-flows",
+  "bugs": {
+    "url": "https://github.com/viktor-gusev/github-flows/issues"
+  },
+  "keywords": [
+    "github",
+    "workflow",
+    "event-driven",
+    "agent",
+    "teqfw",
+    "nodejs"
+  ],
+  "teqfw": {
+    "namespaces": [
+      {
+        "prefix": "Github_Flows_",
+        "path": "./src",
+        "ext": ".mjs"
+      }
+    ]
+  },
+  "dependencies": {
+    "@flancer32/teq-web": "*"
+  },
+  "devDependencies": {
+    "@types/node": "*",
+    "eslint": "*"
+  },
   "scripts": {
-    "test": "node --test"
+    "start": "node ./bin/cli.mjs",
+    "test:unit": "find test/unit -name '*.test.mjs' -print0 | xargs -0 node --test",
+    "test:integration": "find test/integration -name '*.test.mjs' -print0 | xargs -0 node --test",
+    "test": "npm run test:unit && npm run test:integration"
   }
 }
