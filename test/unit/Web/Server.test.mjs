@@ -2,8 +2,10 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { EventEmitter } from "node:events";
 import Github_Flows_Web_Server from "../../../src/Web/Server.mjs";
-import { Data, Factory } from "../../../src/Config/Runtime.mjs";
-import Github_Flows_Config_Runtime from "../../../src/Config/Runtime.mjs";
+
+async function loadRuntimeModule(tag) {
+  return import(`../../../src/Config/Runtime.mjs?${tag}`);
+}
 
 function createHttpStub() {
   const calls = [];
@@ -51,25 +53,26 @@ function createHttpStub() {
 }
 
 function createRuntimeConfig({ port = 3000 } = {}) {
-  const data = new Data();
-  const factory = new Factory({ depData: data });
-  const config = new Github_Flows_Config_Runtime({ depData: data });
+  return loadRuntimeModule(`server-${port}`).then(({ Factory, default: Github_Flows_Config_Runtime }) => {
+    const factory = new Factory();
+    const config = new Github_Flows_Config_Runtime();
 
-  factory.configure({
-    httpHost: "127.0.0.1",
-    httpPort: port,
-    workspaceRoot: "./var/work",
-    runtimeImage: "codex-agent",
-    webhookSecret: "shared-secret",
+    factory.configure({
+      httpHost: "127.0.0.1",
+      httpPort: port,
+      workspaceRoot: "./var/work",
+      runtimeImage: "codex-agent",
+      webhookSecret: "shared-secret",
+    });
+    factory.freeze();
+
+    return { config, factory };
   });
-  factory.freeze();
-
-  return { config, data, factory };
 }
 
 test("web server starts with runtime config and responds to health endpoint", async () => {
   const { calls, http, server: serverStub } = createHttpStub();
-  const { config } = createRuntimeConfig({ port: 3030 });
+  const { config } = await createRuntimeConfig({ port: 3030 });
   const server = new Github_Flows_Web_Server({ http, config });
 
   await server.start();
@@ -88,7 +91,7 @@ test("web server starts with runtime config and responds to health endpoint", as
 
 test("web server returns 404 for unknown routes", async () => {
   const { http, server: serverStub } = createHttpStub();
-  const { config } = createRuntimeConfig({ port: 3031 });
+  const { config } = await createRuntimeConfig({ port: 3031 });
   const server = new Github_Flows_Web_Server({ http, config });
 
   await server.start();

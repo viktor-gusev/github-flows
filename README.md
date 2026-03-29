@@ -26,11 +26,11 @@ Runtime configuration parameters are documented in the code context at [ctx/docs
 
 The runtime DTO is flat and uses these fields:
 
-- `httpHost` - optional, default `127.0.0.1`
-- `httpPort` - optional, default `3000`
-- `workspaceRoot` - required
-- `runtimeImage` - required
-- `webhookSecret` - required
+- `httpHost` - env: `HOST`, optional, default `127.0.0.1`
+- `httpPort` - env: `PORT`, optional, default `3000`
+- `workspaceRoot` - env: `WORKSPACE_ROOT`, required
+- `runtimeImage` - env: `RUNTIME_IMAGE`, required
+- `webhookSecret` - env: `WEBHOOK_SECRET`, required
 
 ## TeqFW Model
 
