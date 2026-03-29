@@ -40,3 +40,46 @@ The package follows the TeqFW DI model:
 - dependencies are resolved by the container
 - the package does not own the process lifecycle
 - the package does not define a standalone `start` entrypoint
+
+## Host Integration Example
+
+The example below shows a minimal TeqFW host application component that injects the public library components, initializes runtime configuration, and then starts the library web server.
+
+```javascript
+/**
+ * Host application root component.
+ */
+export default class App_Root {
+  /**
+   * @param {object} deps
+   * @param {Github_Flows_Config_Runtime} deps.appCfgRuntime
+   * @param {Github_Flows_Web_Server} deps.appWebServer
+   */
+  constructor({ appCfgRuntime, appWebServer }) {
+    this.start = function () {
+      appCfgRuntime.configure({
+        httpHost: "127.0.0.1",
+        httpPort: 3000,
+        workspaceRoot: "./var/work",
+        runtimeImage: "codex-agent",
+        webhookSecret: "replace-with-shared-secret",
+      });
+      appCfgRuntime.freeze();
+
+      return appWebServer.start();
+    };
+  }
+}
+
+export const __deps__ = Object.freeze({
+  appCfgRuntime: "Github_Flows_Config_Runtime$",
+  appWebServer: "Github_Flows_Web_Server$",
+});
+```
+
+In this example:
+
+- the host app component receives the library components through the constructor
+- the host initializes `Github_Flows_Config_Runtime` before server startup
+- the host starts `Github_Flows_Web_Server` explicitly
+- the library server reads its finalized configuration from the DI container
