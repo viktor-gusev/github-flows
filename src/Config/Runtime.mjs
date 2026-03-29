@@ -24,7 +24,7 @@ export class Data {
 export class Factory {
   /**
    * @param {object} deps
-   * @param {Github_Flows_Config_Runtime$Data} deps.depData
+   * @param {Github_Flows_Config_Runtime} deps.depData
    * @param {Github_Flows_Config_Runtime$Factory} deps.depFactory
    */
   constructor({ depData, depFactory }) {
@@ -79,7 +79,7 @@ export class Factory {
 export default class Wrapper {
   /**
    * @param {object} deps
-   * @param {Github_Flows_Config_Runtime$Data} deps.depData
+   * @param {Github_Flows_Config_Runtime} deps.depData
    */
   constructor({ depData }) {
     const state = depData;
@@ -142,8 +142,8 @@ export default class Wrapper {
 
 export const __deps__ = Object.freeze({
   Factory: Object.freeze({
-    depData: "Github_Flows_Config_Runtime$Data",
-    depFactory: "Github_Flows_Config_Runtime$Factory",
+    depData: "Github_Flows_Config_Runtime$",
+    depFactory: "Github_Flows_Config_Runtime__Factory$",
   }),
 });
 
