@@ -53,16 +53,16 @@ function createHttpStub() {
 function createRuntimeConfig({ port = 3000 } = {}) {
   const data = new Data();
   const factory = new Factory({ depData: data });
-  const config = new Github_Flows_Config_Runtime({ depData: data, depFactory: factory });
+  const config = new Github_Flows_Config_Runtime({ depData: data });
 
-  config.configure({
+  factory.configure({
     httpHost: "127.0.0.1",
     httpPort: port,
     workspaceRoot: "./var/work",
     runtimeImage: "codex-agent",
     webhookSecret: "shared-secret",
   });
-  config.freeze();
+  factory.freeze();
 
   return { config, data, factory };
 }

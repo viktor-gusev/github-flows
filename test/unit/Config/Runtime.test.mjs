@@ -51,17 +51,14 @@ test("factory rejects missing required fields", () => {
 test("wrapper exposes read-only proxy", () => {
   const data = new Data();
   const factory = new Factory({ depData: data });
-  const runtime = new Github_Flows_Config_Runtime({
-    depData: data,
-    depFactory: factory,
-  });
+  const runtime = new Github_Flows_Config_Runtime({ depData: data });
 
-  runtime.configure({
+  factory.configure({
     workspaceRoot: "./var/work",
     runtimeImage: "codex-agent",
     webhookSecret: "shared-secret",
   });
-  runtime.freeze();
+  factory.freeze();
 
   assert.equal(runtime.httpHost, "127.0.0.1");
   assert.equal(runtime.httpPort, 3000);

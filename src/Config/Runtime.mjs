@@ -80,19 +80,10 @@ export default class Wrapper {
   /**
    * @param {object} deps
    * @param {Github_Flows_Config_Runtime$Data} deps.depData
-   * @param {Github_Flows_Config_Runtime$Factory} deps.depFactory
    */
-  constructor({ depData, depFactory }) {
+  constructor({ depData }) {
     const state = depData;
     const facade = {};
-
-    facade.configure = function (params) {
-      depFactory.configure(params);
-    };
-
-    facade.freeze = function () {
-      depFactory.freeze();
-    };
 
     Object.defineProperties(facade, {
       httpHost: {
