@@ -76,7 +76,7 @@ export class Factory {
 /**
  * Runtime configuration wrapper.
  */
-export default class Github_Flows_Config_Runtime {
+export default class Wrapper {
   /**
    * @param {object} deps
    * @param {Github_Flows_Config_Runtime$Data} deps.depData
