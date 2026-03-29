@@ -4,11 +4,11 @@
 export default class Github_Flows_Web_Server {
   /**
    * @param {object} deps
-   * @param {import("node:http")} deps.http
+   * @param {Node_Http} deps.http
    * @param {Github_Flows_Config_Runtime} deps.config
    */
   constructor({ http, config }) {
-    /** @type {http.Server|undefined} */
+    /** @type {Node_Http$Server|undefined} */
     let instance;
 
     this.getInstance = () => instance;

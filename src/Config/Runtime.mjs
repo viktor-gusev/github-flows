@@ -23,10 +23,11 @@ export class Data {
  */
 export class Factory {
   /**
-   * @param {object} params
-   * @param {Data} params.depData
+   * @param {object} deps
+   * @param {Github_Flows_Config_Runtime$Data} deps.depData
+   * @param {Github_Flows_Config_Runtime$Factory} deps.depFactory
    */
-  constructor({ depData }) {
+  constructor({ depData, depFactory }) {
     let frozen = false;
 
     this.configure = function (params = {}) {
@@ -77,9 +78,9 @@ export class Factory {
  */
 export default class Github_Flows_Config_Runtime {
   /**
-   * @param {object} params
-   * @param {Data} params.depData
-   * @param {Factory} params.depFactory
+   * @param {object} deps
+   * @param {Github_Flows_Config_Runtime$Data} deps.depData
+   * @param {Github_Flows_Config_Runtime$Factory} deps.depFactory
    */
   constructor({ depData, depFactory }) {
     const state = depData;
@@ -151,6 +152,7 @@ export default class Github_Flows_Config_Runtime {
 export const __deps__ = Object.freeze({
   Factory: Object.freeze({
     depData: "Github_Flows_Config_Runtime$Data",
+    depFactory: "Github_Flows_Config_Runtime$Factory",
   }),
 });
 

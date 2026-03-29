@@ -4,6 +4,7 @@
   "description": "Event-driven workflows for repository-based agent execution.",
   "license": "Apache-2.0",
   "type": "module",
+  "types": "types.d.ts",
   "engines": {
     "node": ">= 20"
   },
@@ -48,8 +49,7 @@
     "@flancer32/teq-web": "*"
   },
   "devDependencies": {
-    "@types/node": "*",
-    "eslint": "*"
+    "@types/node": "*"
   },
   "scripts": {
     "start": "node ./bin/cli.mjs",
