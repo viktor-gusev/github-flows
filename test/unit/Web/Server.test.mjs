@@ -1,104 +1,85 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { EventEmitter } from "node:events";
 import Github_Flows_Web_Server from "../../../src/Web/Server.mjs";
 
 async function loadRuntimeModule(tag) {
   return import(`../../../src/Config/Runtime.mjs?${tag}`);
 }
 
-function createHttpStub() {
+function createServerStub() {
   const calls = [];
+  const instance = { id: "server-instance" };
 
-  class ServerStub extends EventEmitter {
-    listen(port, host, callback) {
-      calls.push({ method: "listen", port, host });
-      callback?.();
-      return this;
-    }
-
-    close(callback) {
-      calls.push({ method: "close" });
-      callback?.();
-    }
-
-    emitRequest(url) {
-      const req = { url };
-      const res = {
-        statusCode: undefined,
-        headers: undefined,
-        body: "",
-        writeHead(statusCode, headers) {
-          this.statusCode = statusCode;
-          this.headers = headers;
-        },
-        end(chunk = "") {
-          this.body += chunk;
-        },
-      };
-      this.emit("request", req, res);
-      return res;
-    }
-  }
-
-  const server = new ServerStub();
-  const http = {
-    createServer(handler) {
-      server.on("request", handler);
-      return server;
+  return {
+    calls,
+    server: {
+      getInstance() {
+        calls.push({ method: "getInstance" });
+        return instance;
+      },
+      async start(cfg) {
+        calls.push({ method: "start", cfg });
+      },
+      async stop() {
+        calls.push({ method: "stop" });
+      },
     },
+    instance,
   };
-
-  return { calls, http, server };
 }
 
-function createRuntimeConfig({ port = 3000 } = {}) {
-  return loadRuntimeModule(`server-${port}`).then(({ Factory, default: Github_Flows_Config_Runtime }) => {
-    const factory = new Factory();
-    const config = new Github_Flows_Config_Runtime();
+async function createRuntimeConfig({ port = 3000 } = {}) {
+  const { Factory, default: Github_Flows_Config_Runtime } = await loadRuntimeModule(`server-${port}`);
+  const factory = new Factory();
+  const config = new Github_Flows_Config_Runtime();
 
-    factory.configure({
-      httpHost: "127.0.0.1",
-      httpPort: port,
-      workspaceRoot: "./var/work",
-      runtimeImage: "codex-agent",
-      webhookSecret: "shared-secret",
-    });
-    factory.freeze();
-
-    return { config, factory };
+  factory.configure({
+    httpHost: "127.0.0.1",
+    httpPort: port,
+    workspaceRoot: "./var/work",
+    runtimeImage: "codex-agent",
+    webhookSecret: "shared-secret",
   });
+  factory.freeze();
+
+  return { config, factory };
 }
 
-test("web server starts with runtime config and responds to health endpoint", async () => {
-  const { calls, http, server: serverStub } = createHttpStub();
+test("web server delegates startup to teq-web server with runtime port", async () => {
+  const { calls, server: serverStub } = createServerStub();
   const { config } = await createRuntimeConfig({ port: 3030 });
-  const server = new Github_Flows_Web_Server({ http, config });
+  const server = new Github_Flows_Web_Server({ server: serverStub, config });
 
   await server.start();
 
-  assert.equal(calls[0].method, "listen");
-  assert.equal(calls[0].port, 3030);
-  assert.equal(calls[0].host, "127.0.0.1");
-
-  const res = serverStub.emitRequest("/health");
-  assert.equal(res.statusCode, 200);
-  assert.equal(res.body, '{"ok":true}');
-
-  await server.stop();
-  assert.equal(calls.at(-1).method, "close");
+  assert.deepEqual(calls, [
+    { method: "start", cfg: { port: 3030, type: "http" } },
+  ]);
 });
 
-test("web server returns 404 for unknown routes", async () => {
-  const { http, server: serverStub } = createHttpStub();
+test("web server forwards explicit runtime overrides", async () => {
+  const { calls, server: serverStub } = createServerStub();
   const { config } = await createRuntimeConfig({ port: 3031 });
-  const server = new Github_Flows_Web_Server({ http, config });
+  const server = new Github_Flows_Web_Server({ server: serverStub, config });
 
-  await server.start();
+  await server.start({ port: 8080, type: "https", tls: { key: "k", cert: "c" } });
 
-  const res = serverStub.emitRequest("/missing");
-  assert.equal(res.statusCode, 404);
-  assert.equal(res.body, "Not Found");
+  assert.deepEqual(calls, [
+    { method: "start", cfg: { port: 8080, type: "https", tls: { key: "k", cert: "c" } } },
+  ]);
+});
+
+test("web server delegates stop and instance lookup", async () => {
+  const { calls, server: serverStub, instance } = createServerStub();
+  const { config } = await createRuntimeConfig({ port: 3032 });
+  const server = new Github_Flows_Web_Server({ server: serverStub, config });
+
+  assert.equal(server.getInstance(), instance);
 
   await server.stop();
+
+  assert.deepEqual(calls, [
+    { method: "getInstance" },
+    { method: "stop" },
+  ]);
 });

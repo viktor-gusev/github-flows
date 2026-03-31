@@ -4,59 +4,32 @@
 export default class Github_Flows_Web_Server {
   /**
    * @param {object} deps
-   * @param {Node_Http} deps.http
+   * @param {Fl32_Web_Back_Server} deps.server
    * @param {Github_Flows_Config_Runtime} deps.config
    */
-  constructor({ http, config }) {
-    /** @type {Node_Http$Server|undefined} */
-    let instance;
+  constructor({ server, config }) {
+    this.getInstance = () => server.getInstance();
 
-    this.getInstance = () => instance;
+    this.start = async function (runtimeCfg = {}) {
+      const cfg = {
+        port: runtimeCfg.port ?? config.httpPort,
+        type: runtimeCfg.type ?? "http",
+      };
 
-    this.start = async function () {
-      if (instance) {
-        return;
+      if (runtimeCfg.tls !== undefined) {
+        cfg.tls = runtimeCfg.tls;
       }
 
-      const host = config.httpHost;
-      const port = config.httpPort;
-
-      instance = http.createServer((req, res) => {
-        if (req.url === "/health") {
-          res.writeHead(200, { "Content-Type": "application/json; charset=utf-8" });
-          res.end(JSON.stringify({ ok: true }));
-          return;
-        }
-
-        res.writeHead(404, { "Content-Type": "text/plain; charset=utf-8" });
-        res.end("Not Found");
-      });
-
-      await new Promise((resolve, reject) => {
-        instance.once("error", reject);
-        instance.listen(port, host, () => {
-          instance?.off("error", reject);
-          resolve();
-        });
-      });
+      await server.start(cfg);
     };
 
     this.stop = async function () {
-      if (!instance) {
-        return;
-      }
-
-      const server = instance;
-      instance = undefined;
-
-      await new Promise((resolve, reject) => {
-        server.close((err) => (err ? reject(err) : resolve()));
-      });
+      await server.stop();
     };
   }
 }
 
 export const __deps__ = Object.freeze({
-  http: "node:http",
+  server: "Fl32_Web_Back_Server$",
   config: "Github_Flows_Config_Runtime$",
 });

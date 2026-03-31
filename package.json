@@ -46,7 +46,7 @@
     ]
   },
   "dependencies": {
-    "@flancer32/teq-web": "*"
+    "@flancer32/teq-web": "^0.10.0"
   },
   "devDependencies": {
     "@types/node": "*"
