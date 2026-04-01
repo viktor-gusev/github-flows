@@ -5,9 +5,10 @@ export default class Github_Flows_Web_Server {
   /**
    * @param {object} deps
    * @param {Fl32_Web_Back_Server} deps.server
+   * @param {Fl32_Web_Back_Config_Runtime$Factory} deps.configFactory
    * @param {Github_Flows_Config_Runtime} deps.config
    */
-  constructor({ server, config }) {
+  constructor({ server, configFactory, config }) {
     this.getInstance = () => server.getInstance();
 
     this.start = async function (runtimeCfg = {}) {
@@ -20,6 +21,8 @@ export default class Github_Flows_Web_Server {
         cfg.tls = runtimeCfg.tls;
       }
 
+      configFactory.configure(cfg);
+      configFactory.freeze();
       await server.start(cfg);
     };
 
@@ -31,5 +34,6 @@ export default class Github_Flows_Web_Server {
 
 export const __deps__ = Object.freeze({
   server: "Fl32_Web_Back_Server$",
+  configFactory: "Fl32_Web_Back_Config_Runtime__Factory$",
   config: "Github_Flows_Config_Runtime$",
 });
