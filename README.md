@@ -2,6 +2,8 @@
 
 `@teqfw/github-flows` is a reusable TeqFW library for handling GitHub webhook events and starting agents from those events inside a host application.
 
+Current release: `0.7.0`.
+
 It is not a standalone executable application.
 
 ## Public Components
@@ -22,7 +24,7 @@ The web server reads its configuration from the DI container after runtime confi
 
 ## Runtime Configuration
 
-Runtime configuration parameters are documented in the code context at [ctx/docs/code/component/configuration/runtime.md](/home/alex/work/app/github-flows/ctx/docs/code/component/configuration/runtime.md) and are expected to be initialized by the host before server startup.
+Runtime configuration parameters are documented in the code context at [ctx/docs/code/component/configuration/runtime.md](ctx/docs/code/component/configuration/runtime.md) and are expected to be initialized by the host before server startup.
 
 The runtime DTO is flat and uses these fields:
 
