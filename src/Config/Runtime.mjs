@@ -80,8 +80,7 @@ export class Factory {
         port: cfg.httpPort,
         type: "http",
       });
-      const webConfig = webConfigFactory.freeze();
-      if (cfg.webConfig === undefined) cfg.webConfig = webConfig;
+      cfg.webConfig = webConfigFactory.freeze();
 
       frozen = true;
       Object.freeze(cfg);
