@@ -2,7 +2,7 @@
 
 `@teqfw/github-flows` is a reusable TeqFW library for handling GitHub webhook events and starting agents from those events inside a host application.
 
-Current release: `0.7.0`.
+Current release: `0.1.0`.
 
 It is not a standalone executable application.
 
