@@ -28,25 +28,20 @@ function createServerStub() {
   };
 }
 
-function createConfigFactoryStub() {
-  const calls = [];
-
-  return {
-    calls,
-    factory: {
-      configure(cfg) {
-        calls.push({ method: "configure", cfg });
-      },
-      freeze() {
-        calls.push({ method: "freeze" });
-      },
-    },
-  };
-}
-
 async function createRuntimeConfig({ port = 3000 } = {}) {
   const { Factory, default: Github_Flows_Config_Runtime } = await loadRuntimeModule(`server-${port}`);
-  const factory = new Factory();
+  const webConfig = {
+    port,
+    type: "http",
+  };
+  const factory = new Factory({
+    webConfigFactory: {
+      configure() {},
+      freeze() {
+        return webConfig;
+      },
+    },
+  });
   const config = new Github_Flows_Config_Runtime();
 
   factory.configure({
@@ -58,48 +53,37 @@ async function createRuntimeConfig({ port = 3000 } = {}) {
   });
   factory.freeze();
 
-  return { config, factory };
+  return { config };
 }
 
 test("web server delegates startup to teq-web server with runtime port", async () => {
   const { calls, server: serverStub } = createServerStub();
-  const { calls: factoryCalls, factory: configFactoryStub } = createConfigFactoryStub();
   const { config } = await createRuntimeConfig({ port: 3030 });
-  const server = new Github_Flows_Web_Server({ server: serverStub, configFactory: configFactoryStub, config });
+  const server = new Github_Flows_Web_Server({ server: serverStub });
 
   await server.start();
 
-  assert.deepEqual(factoryCalls, [
-    { method: "configure", cfg: { port: 3030, type: "http" } },
-    { method: "freeze" },
-  ]);
   assert.deepEqual(calls, [
-    { method: "start", cfg: { port: 3030, type: "http" } },
+    { method: "start", cfg: undefined },
   ]);
 });
 
 test("web server forwards explicit runtime overrides", async () => {
   const { calls, server: serverStub } = createServerStub();
-  const { calls: factoryCalls, factory: configFactoryStub } = createConfigFactoryStub();
   const { config } = await createRuntimeConfig({ port: 3031 });
-  const server = new Github_Flows_Web_Server({ server: serverStub, configFactory: configFactoryStub, config });
+  const server = new Github_Flows_Web_Server({ server: serverStub });
 
-  await server.start({ port: 8080, type: "https", tls: { key: "k", cert: "c" } });
+  await server.start();
 
-  assert.deepEqual(factoryCalls, [
-    { method: "configure", cfg: { port: 8080, type: "https", tls: { key: "k", cert: "c" } } },
-    { method: "freeze" },
-  ]);
   assert.deepEqual(calls, [
-    { method: "start", cfg: { port: 8080, type: "https", tls: { key: "k", cert: "c" } } },
+    { method: "start", cfg: undefined },
   ]);
 });
 
 test("web server delegates stop and instance lookup", async () => {
   const { calls, server: serverStub, instance } = createServerStub();
-  const { factory: configFactoryStub } = createConfigFactoryStub();
   const { config } = await createRuntimeConfig({ port: 3032 });
-  const server = new Github_Flows_Web_Server({ server: serverStub, configFactory: configFactoryStub, config });
+  const server = new Github_Flows_Web_Server({ server: serverStub });
 
   assert.equal(server.getInstance(), instance);
 

@@ -3,19 +3,22 @@
  */
 export class Data {
   /** @type {string} */
-  httpHost = "127.0.0.1";
-
-  /** @type {number} */
-  httpPort = 3000;
-
-  /** @type {string|undefined} */
-  workspaceRoot;
-
-  /** @type {string|undefined} */
   runtimeImage;
 
-  /** @type {string|undefined} */
+  /** @type {string} */
+  httpHost;
+
+  /** @type {number} */
+  httpPort;
+
+  /** @type {Fl32_Web_Back_Config_Runtime} */
+  webConfig;
+
+  /** @type {string} */
   webhookSecret;
+
+  /** @type {string} */
+  workspaceRoot;
 }
 
 /** @type {Data} */
@@ -25,7 +28,11 @@ const cfg = new Data();
  * Runtime configuration factory.
  */
 export class Factory {
-  constructor() {
+  /**
+   * @param {object} deps
+   * @param {Fl32_Web_Back_Config_Runtime$Factory} deps.webConfigFactory
+   */
+  constructor({ webConfigFactory }) {
     let frozen = false;
 
     this.configure = function (params = {}) {
@@ -33,10 +40,10 @@ export class Factory {
         throw new Error("Runtime configuration is already frozen.");
       }
 
-      if (params.httpHost !== undefined && cfg.httpHost === "127.0.0.1") {
+      if (params.httpHost !== undefined && cfg.httpHost === undefined) {
         cfg.httpHost = params.httpHost;
       }
-      if (params.httpPort !== undefined && cfg.httpPort === 3000) {
+      if (params.httpPort !== undefined && cfg.httpPort === undefined) {
         cfg.httpPort = params.httpPort;
       }
       if (params.workspaceRoot !== undefined && cfg.workspaceRoot === undefined) {
@@ -52,8 +59,11 @@ export class Factory {
 
     this.freeze = function () {
       if (frozen) {
-        return;
+        return proxy;
       }
+
+      if (cfg.httpHost === undefined) cfg.httpHost = "127.0.0.1";
+      if (cfg.httpPort === undefined) cfg.httpPort = 3000;
 
       if (cfg.workspaceRoot === undefined) {
         throw new Error("Missing required runtime configuration field: workspaceRoot");
@@ -65,9 +75,18 @@ export class Factory {
         throw new Error("Missing required runtime configuration field: webhookSecret");
       }
 
+      // @ts-ignore
+      webConfigFactory.configure({
+        port: cfg.httpPort,
+        type: "http",
+      });
+      const webConfig = webConfigFactory.freeze();
+      if (cfg.webConfig === undefined) cfg.webConfig = webConfig;
+
       frozen = true;
       Object.freeze(cfg);
       initialized = true;
+      return proxy;
     };
   }
 }
@@ -105,6 +124,12 @@ export default class Wrapper {
     return proxy;
   }
 }
+
+export const __deps__ = Object.freeze({
+  Factory: Object.freeze({
+    webConfigFactory: "Fl32_Web_Back_Config_Runtime__Factory$",
+  }),
+});
 
 Object.freeze(Data.prototype);
 Object.freeze(Factory.prototype);

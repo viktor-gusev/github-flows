@@ -9,8 +9,8 @@ test("runtime config data has defaults", async () => {
   const { Data } = await loadRuntimeModule("defaults");
   const data = new Data();
 
-  assert.equal(data.httpHost, "127.0.0.1");
-  assert.equal(data.httpPort, 3000);
+  assert.equal(data.httpHost, undefined);
+  assert.equal(data.httpPort, undefined);
   assert.equal(data.workspaceRoot, undefined);
   assert.equal(data.runtimeImage, undefined);
   assert.equal(data.webhookSecret, undefined);
@@ -18,7 +18,22 @@ test("runtime config data has defaults", async () => {
 
 test("factory applies values and freezes required configuration", async () => {
   const { Factory, default: Github_Flows_Config_Runtime } = await loadRuntimeModule("factory-applies");
-  const factory = new Factory();
+  const webConfigCalls = [];
+  const webConfig = {
+    getInstance() {
+      return { id: "web-config" };
+    },
+  };
+  const webConfigFactory = {
+    configure(cfg) {
+      webConfigCalls.push({ method: "configure", cfg });
+    },
+    freeze() {
+      webConfigCalls.push({ method: "freeze" });
+      return webConfig;
+    },
+  };
+  const factory = new Factory({ webConfigFactory });
   const runtime = new Github_Flows_Config_Runtime();
 
   factory.configure({
@@ -35,6 +50,11 @@ test("factory applies values and freezes required configuration", async () => {
   assert.equal(runtime.workspaceRoot, "./var/work");
   assert.equal(runtime.runtimeImage, "codex-agent");
   assert.equal(runtime.webhookSecret, "shared-secret");
+  assert.equal(runtime.webConfig, webConfig);
+  assert.deepEqual(webConfigCalls, [
+    { method: "configure", cfg: { port: 8080, type: "http" } },
+    { method: "freeze" },
+  ]);
   assert.throws(() => {
     runtime.httpPort = 8081;
   }, /immutable/);
@@ -42,7 +62,14 @@ test("factory applies values and freezes required configuration", async () => {
 
 test("factory rejects missing required fields", async () => {
   const { Factory } = await loadRuntimeModule("factory-missing");
-  const factory = new Factory();
+  const factory = new Factory({
+    webConfigFactory: {
+      configure() {},
+      freeze() {
+        return {};
+      },
+    },
+  });
 
   factory.configure({
     runtimeImage: "codex-agent",
@@ -56,7 +83,14 @@ test("factory rejects missing required fields", async () => {
 
 test("wrapper rejects access before initialization", async () => {
   const { Factory, default: Github_Flows_Config_Runtime } = await loadRuntimeModule("wrapper-before-freeze");
-  const factory = new Factory();
+  const factory = new Factory({
+    webConfigFactory: {
+      configure() {},
+      freeze() {
+        return {};
+      },
+    },
+  });
   const runtime = new Github_Flows_Config_Runtime();
 
   factory.configure({
