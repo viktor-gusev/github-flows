@@ -34,6 +34,29 @@ The runtime DTO is flat and uses these fields:
 - `runtimeImage` - env: `RUNTIME_IMAGE`, required
 - `webhookSecret` - env: `WEBHOOK_SECRET`, required
 
+## GitHub Webhooks
+
+To connect a GitHub repository to this package:
+
+1. In the repository settings, add a webhook.
+2. Set the payload URL to the host address exposed by the package, followed by `/webhooks/github`.
+3. Use `application/json` as the content type.
+4. Set a shared secret that matches `WEBHOOK_SECRET`; GitHub uses it to compute `X-Hub-Signature-256`.
+5. Send `POST` webhook deliveries to the fixed ingress path.
+
+The package accepts webhook requests only on `/webhooks/github`. Requests to other paths are not treated as webhook ingress.
+
+Example local check:
+
+```bash
+curl -i \
+  -X POST \
+  http://127.0.0.1:3000/webhooks/github \
+  -H 'Content-Type: application/json' \
+  -H 'x-hub-signature-256: sha256=replace-with-valid-hmac' \
+  -d '{"action":"opened"}'
+```
+
 ## TeqFW Model
 
 The package follows the TeqFW DI model:
