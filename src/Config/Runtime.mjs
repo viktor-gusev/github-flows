@@ -125,6 +125,7 @@ export default class Wrapper {
 }
 
 export const __deps__ = Object.freeze({
+  default: Object.freeze({}),
   Factory: Object.freeze({
     webConfigFactory: "Fl32_Web_Back_Config_Runtime__Factory$",
   }),
