@@ -30,7 +30,7 @@ const cfg = new Data();
 export class Factory {
   /**
    * @param {object} deps
-   * @param {Fl32_Web_Back_Config_Runtime$Factory} deps.webConfigFactory
+   * @param {Fl32_Web_Back_Config_Runtime__Factory} deps.webConfigFactory
    */
   constructor({ webConfigFactory }) {
     let frozen = false;
