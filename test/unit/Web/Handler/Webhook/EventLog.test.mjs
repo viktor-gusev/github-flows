@@ -26,7 +26,9 @@ test("event logger records bounded inbound snapshot without authentication heade
       headers: {
         "content-type": "application/json",
         "x-github-event": "issues",
+        "x-github-delivery": "12345",
         "x-hub-signature-256": "sha256=secret",
+        "x-request-id": "req-1",
         authorization: "Bearer top-secret",
       },
     },
@@ -36,6 +38,12 @@ test("event logger records bounded inbound snapshot without authentication heade
         repository: {
           full_name: "owner/repo",
           description: "x".repeat(65),
+          owner: {
+            login: "octocat",
+            profile: {
+              bio: "y".repeat(80),
+            },
+          },
         },
       }),
       "utf8",
@@ -46,16 +54,22 @@ test("event logger records bounded inbound snapshot without authentication heade
     {
       type: "github-webhook",
       stage: "reception",
-      pathname: "/webhooks/github",
+      pathname: "...",
       headers: {
-        "content-type": "application/json",
         "x-github-event": "issues",
+        "x-github-delivery": "12345",
       },
       body: {
         action: "opened",
         repository: {
           full_name: "owner/repo",
           description: "...",
+          owner: {
+            login: "octocat",
+            profile: {
+              bio: "...",
+            },
+          },
         },
       },
     },
@@ -70,10 +84,22 @@ test("event logger records bounded decision trace", async () => {
     resolutionInputs: {
       eventName: "pull_request",
       repository: "owner/repo",
+      installation: {
+        account: {
+          login: "octocat",
+          note: "z".repeat(90),
+        },
+      },
     },
     decisionBasis: {
       start: true,
       prompt: "x".repeat(80),
+      match: {
+        repository: {
+          name: "repo",
+          owner: "owner",
+        },
+      },
     },
     decision: "start",
   });
@@ -85,10 +111,22 @@ test("event logger records bounded decision trace", async () => {
       resolutionInputs: {
         eventName: "pull_request",
         repository: "owner/repo",
+        installation: {
+          account: {
+            login: "octocat",
+            note: "...",
+          },
+        },
       },
       decisionBasis: {
         start: true,
         prompt: "...",
+        match: {
+          repository: {
+            name: "repo",
+            owner: "owner",
+          },
+        },
       },
       decision: "start",
     },

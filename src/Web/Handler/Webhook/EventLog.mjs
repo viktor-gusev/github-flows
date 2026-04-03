@@ -4,6 +4,7 @@
 const MAX_LOG_VALUE_LENGTH = 64;
 const REPLACEMENT = "...";
 const AUTH_HEADER_PATTERN = /(authorization|signature|secret|token)/i;
+const GITHUB_HEADER_PATTERN = /^x-(github|hub)-/i;
 
 /**
  * @param {unknown} value
@@ -19,6 +20,7 @@ function sanitizeValue(value) {
   }
 
   if (value && typeof value === "object") {
+    // Preserve nested request/detail hierarchy while applying the same bounded logging rule.
     return Object.fromEntries(
       Object.entries(value).map(([key, item]) => [key, sanitizeValue(item)]),
     );
@@ -34,7 +36,11 @@ function sanitizeValue(value) {
 function selectHeaders(headers = {}) {
   return Object.fromEntries(
     Object.entries(headers)
-      .filter(([name, value]) => value !== undefined && !AUTH_HEADER_PATTERN.test(name))
+      .filter(([name, value]) =>
+        value !== undefined
+        && GITHUB_HEADER_PATTERN.test(name)
+        && !AUTH_HEADER_PATTERN.test(name)
+      )
       .map(([name, value]) => [name, sanitizeValue(value)]),
   );
 }
@@ -68,7 +74,7 @@ export default class Github_Flows_Web_Handler_Webhook_EventLog {
       target.info?.({
         type: "github-webhook",
         stage: "reception",
-        pathname,
+        pathname: pathname ? REPLACEMENT : pathname,
         headers: selectHeaders(request.headers),
         body: parseBody(body),
       });
