@@ -37,6 +37,7 @@ test("event logger records bounded inbound snapshot without authentication heade
         action: "opened",
         repository: {
           full_name: "owner/repo",
+          events_url: "https://api.github.com/users/flancer64/events{/privacy}",
           description: "x".repeat(65),
           owner: {
             login: "octocat",
@@ -54,7 +55,7 @@ test("event logger records bounded inbound snapshot without authentication heade
     {
       type: "github-webhook",
       stage: "reception",
-      pathname: "...",
+      pathname: "/webhooks/github",
       headers: {
         "x-github-event": "issues",
         "x-github-delivery": "12345",
@@ -63,6 +64,7 @@ test("event logger records bounded inbound snapshot without authentication heade
         action: "opened",
         repository: {
           full_name: "owner/repo",
+          events_url: "...",
           description: "...",
           owner: {
             login: "octocat",
@@ -87,6 +89,7 @@ test("event logger records bounded decision trace", async () => {
       installation: {
         account: {
           login: "octocat",
+          events_url: "https://api.github.com/users/flancer64/events{/privacy}",
           note: "z".repeat(90),
         },
       },
@@ -114,6 +117,7 @@ test("event logger records bounded decision trace", async () => {
         installation: {
           account: {
             login: "octocat",
+            events_url: "...",
             note: "...",
           },
         },

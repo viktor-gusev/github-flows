@@ -5,6 +5,7 @@ const MAX_LOG_VALUE_LENGTH = 64;
 const REPLACEMENT = "...";
 const AUTH_HEADER_PATTERN = /(authorization|signature|secret|token)/i;
 const GITHUB_HEADER_PATTERN = /^x-(github|hub)-/i;
+const HTTPS_PREFIX = "https://";
 
 /**
  * @param {unknown} value
@@ -12,6 +13,9 @@ const GITHUB_HEADER_PATTERN = /^x-(github|hub)-/i;
  */
 function sanitizeValue(value) {
   if (typeof value === "string") {
+    if (value.startsWith(HTTPS_PREFIX)) {
+      return REPLACEMENT;
+    }
     return value.length > MAX_LOG_VALUE_LENGTH ? REPLACEMENT : value;
   }
 
@@ -74,7 +78,7 @@ export default class Github_Flows_Web_Handler_Webhook_EventLog {
       target.info?.({
         type: "github-webhook",
         stage: "reception",
-        pathname: pathname ? REPLACEMENT : pathname,
+        pathname: sanitizeValue(pathname),
         headers: selectHeaders(request.headers),
         body: parseBody(body),
       });
