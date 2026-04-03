@@ -1,5 +1,3 @@
-import { createHmac, timingSafeEqual } from "node:crypto";
-
 /**
  * Static HTTP path for GitHub webhook requests.
  * This is part of the public request contract, not runtime configuration.
@@ -28,31 +26,6 @@ function readRawBody(request) {
 }
 
 /**
- * Validate the GitHub webhook signature.
- *
- * @param {string} secret
- * @param {Buffer} body
- * @param {string | string[] | undefined} signatureHeader
- * @returns {boolean}
- */
-function isValidSignature(secret, body, signatureHeader) {
-  if (typeof signatureHeader !== "string") {
-    return false;
-  }
-
-  const [algorithm, digest] = signatureHeader.split("=", 2);
-  if (algorithm !== "sha256" || !digest) {
-    return false;
-  }
-
-  const expected = createHmac("sha256", secret).update(body).digest("hex");
-  const received = Buffer.from(digest, "hex");
-  const actual = Buffer.from(expected, "hex");
-
-  return received.length === actual.length && timingSafeEqual(received, actual);
-}
-
-/**
  * GitHub webhook request handler.
  *
  * Implements `Fl32_Web_Back_Api_Handler` and processes only the static
@@ -63,9 +36,11 @@ function isValidSignature(secret, body, signatureHeader) {
 export default class Github_Flows_Web_Handler_Webhook {
   /**
    * @param {object} deps
+   * @param {Github_Flows_Web_Handler_Webhook_EventLog} deps.eventLog
    * @param {Github_Flows_Config_Runtime} deps.runtime
+   * @param {Github_Flows_Web_Handler_Webhook_Signature} deps.signature
    */
-  constructor({ runtime }) {
+  constructor({ eventLog, runtime, signature }) {
     this.getRegistrationInfo = function () {
       return {
         name: "Github_Flows_Web_Handler_Webhook",
@@ -87,8 +62,10 @@ export default class Github_Flows_Web_Handler_Webhook {
       }
 
       const body = await readRawBody(request);
+      eventLog.logReception({ body, pathname, request });
 
-      if (!isValidSignature(secret, body, signatureHeader)) {
+      if (!(await signature.isValid({ body, secret, signatureHeader }))) {
+        eventLog.logIngress({ outcome: "rejected", reason: "invalid-signature" });
         if (!response.headersSent) {
           response.writeHead(401, { "Content-Type": "application/json; charset=utf-8" });
         }
@@ -97,6 +74,7 @@ export default class Github_Flows_Web_Handler_Webhook {
         return;
       }
 
+      eventLog.logIngress({ outcome: "admitted" });
       if (!response.headersSent) {
         response.writeHead(202, { "Content-Type": "application/json; charset=utf-8" });
       }
@@ -108,6 +86,8 @@ export default class Github_Flows_Web_Handler_Webhook {
 
 export const __deps__ = Object.freeze({
   default: Object.freeze({
+    eventLog: "Github_Flows_Web_Handler_Webhook_EventLog$",
     runtime: "Github_Flows_Config_Runtime$",
+    signature: "Github_Flows_Web_Handler_Webhook_Signature$",
   }),
 });

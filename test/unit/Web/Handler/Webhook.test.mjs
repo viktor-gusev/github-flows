@@ -1,26 +1,59 @@
-import test from "node:test";
 import assert from "node:assert/strict";
+import { createHmac } from "node:crypto";
+import { EventEmitter } from "node:events";
+import test from "node:test";
+
 import Github_Flows_Web_Handler_Webhook from "../../../../src/Web/Handler/Webhook.mjs";
 
-function createContext({ path = "/webhooks/github", secret = "shared-secret" } = {}) {
+function createSignature(secret, body) {
+  const digest = createHmac("sha256", secret).update(body).digest("hex");
+  return `sha256=${digest}`;
+}
+
+function createRequest({ body = "{}", path = "/webhooks/github", secret = "shared-secret" } = {}) {
+  const request = new EventEmitter();
+  request.url = path;
+  request.headers = {
+    "content-type": "application/json",
+    "x-github-event": "issues",
+    "x-hub-signature-256": createSignature(secret, body),
+  };
+
+  queueMicrotask(() => {
+    if (body.length > 0) request.emit("data", Buffer.from(body, "utf8"));
+    request.emit("end");
+  });
+
+  return request;
+}
+
+function createContext({ body = "{}", path = "/webhooks/github", secret = "shared-secret" } = {}) {
   const calls = [];
+  const eventLogCalls = [];
 
   return {
     calls,
-    context: {
-      request: {
-        url: path,
-        headers: {
-          "x-github-webhook-secret": secret,
-        },
+    eventLogCalls,
+    eventLog: {
+      logReception(entry) {
+        eventLogCalls.push({ method: "logReception", entry });
       },
+      logIngress(entry) {
+        eventLogCalls.push({ method: "logIngress", entry });
+      },
+      logDecisionTrace(entry) {
+        eventLogCalls.push({ method: "logDecisionTrace", entry });
+      },
+    },
+    context: {
+      request: createRequest({ body, path, secret }),
       response: {
         headersSent: false,
         writeHead(code, headers) {
           calls.push({ method: "writeHead", code, headers });
         },
-        end(body) {
-          calls.push({ method: "end", body });
+        end(bodyText) {
+          calls.push({ method: "end", body: bodyText });
         },
       },
       complete() {
@@ -32,7 +65,9 @@ function createContext({ path = "/webhooks/github", secret = "shared-secret" } =
 
 test("webhook handler exposes teq-web handler contract", async () => {
   const handler = new Github_Flows_Web_Handler_Webhook({
+    eventLog: {},
     runtime: { webhookSecret: "shared-secret" },
+    signature: { isValid: async () => true },
   });
 
   const info = handler.getRegistrationInfo();
@@ -44,14 +79,23 @@ test("webhook handler exposes teq-web handler contract", async () => {
   assert.deepEqual(info.after, []);
 });
 
-test("webhook handler accepts matching webhook requests", async () => {
-  const handler = new Github_Flows_Web_Handler_Webhook({
-    runtime: { webhookSecret: "shared-secret" },
+test("webhook handler accepts matching webhook requests and logs admission after reception", async () => {
+  const { calls, context, eventLog, eventLogCalls } = createContext({
+    body: JSON.stringify({ action: "opened" }),
   });
-  const { calls, context } = createContext();
+  const handler = new Github_Flows_Web_Handler_Webhook({
+    eventLog,
+    runtime: { webhookSecret: "shared-secret" },
+    signature: { isValid: async () => true },
+  });
 
   await handler.handle(context);
 
+  assert.equal(eventLogCalls[0].method, "logReception");
+  assert.deepEqual(eventLogCalls[1], {
+    method: "logIngress",
+    entry: { outcome: "admitted" },
+  });
   assert.deepEqual(calls, [
     {
       method: "writeHead",
@@ -66,14 +110,21 @@ test("webhook handler accepts matching webhook requests", async () => {
   ]);
 });
 
-test("webhook handler rejects invalid secret", async () => {
+test("webhook handler rejects invalid signature after reception logging", async () => {
+  const { calls, context, eventLog, eventLogCalls } = createContext();
   const handler = new Github_Flows_Web_Handler_Webhook({
+    eventLog,
     runtime: { webhookSecret: "shared-secret" },
+    signature: { isValid: async () => false },
   });
-  const { calls, context } = createContext({ secret: "wrong-secret" });
 
   await handler.handle(context);
 
+  assert.equal(eventLogCalls[0].method, "logReception");
+  assert.deepEqual(eventLogCalls[1], {
+    method: "logIngress",
+    entry: { outcome: "rejected", reason: "invalid-signature" },
+  });
   assert.deepEqual(calls, [
     {
       method: "writeHead",
@@ -89,12 +140,15 @@ test("webhook handler rejects invalid secret", async () => {
 });
 
 test("webhook handler ignores non-webhook paths", async () => {
+  const { calls, context, eventLog, eventLogCalls } = createContext({ path: "/other" });
   const handler = new Github_Flows_Web_Handler_Webhook({
+    eventLog,
     runtime: { webhookSecret: "shared-secret" },
+    signature: { isValid: async () => true },
   });
-  const { calls, context } = createContext({ path: "/other" });
 
   await handler.handle(context);
 
   assert.deepEqual(calls, []);
+  assert.deepEqual(eventLogCalls, []);
 });

@@ -4,6 +4,7 @@ import http from "node:http";
 import os from "node:os";
 import path from "node:path";
 import { test } from "node:test";
+import { createHmac } from "node:crypto";
 import { fileURLToPath } from "node:url";
 
 import Container from "../../../node_modules/@teqfw/di/src/Container.mjs";
@@ -68,6 +69,11 @@ const createContainer = async function () {
   return container;
 };
 
+const createSignature = function (secret, body) {
+  const digest = createHmac("sha256", secret).update(body).digest("hex");
+  return `sha256=${digest}`;
+};
+
 test("webhook ingress is served on the static GitHub webhook path", async () => {
   const container = await createContainer();
   const workspaceRoot = await fs.mkdtemp(path.join(os.tmpdir(), "github-flows-"));
@@ -94,7 +100,7 @@ test("webhook ingress is served on the static GitHub webhook path", async () => 
       pathname: "/webhooks/github",
       body: validBody,
       headers: {
-        "x-github-webhook-secret": secret,
+        "x-hub-signature-256": createSignature(secret, validBody),
       },
     });
 
@@ -103,7 +109,7 @@ test("webhook ingress is served on the static GitHub webhook path", async () => 
       pathname: "/missing",
       body: validBody,
       headers: {
-        "x-github-webhook-secret": secret,
+        "x-hub-signature-256": createSignature(secret, validBody),
       },
     });
 
@@ -112,7 +118,7 @@ test("webhook ingress is served on the static GitHub webhook path", async () => 
       pathname: "/webhooks/github",
       body: validBody,
       headers: {
-        "x-github-webhook-secret": "wrong-secret",
+        "x-hub-signature-256": createSignature("wrong-secret", validBody),
       },
     });
 
