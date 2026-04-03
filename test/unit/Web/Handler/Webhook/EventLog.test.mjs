@@ -136,3 +136,41 @@ test("event logger records bounded decision trace", async () => {
     },
   ]);
 });
+
+test("event logger preserves nested structure in default console output", async () => {
+  const calls = [];
+  const originalInfo = console.info;
+  console.info = function (entry) {
+    calls.push(entry);
+  };
+
+  try {
+    const logger = new Github_Flows_Web_Handler_Webhook_EventLog();
+
+    logger.logDecisionTrace({
+      resolutionInputs: {
+        repository: {
+          owner: {
+            login: "octocat",
+          },
+        },
+      },
+      decisionBasis: {
+        match: {
+          repository: {
+            name: "repo",
+          },
+        },
+      },
+      decision: "start",
+    });
+  } finally {
+    console.info = originalInfo;
+  }
+
+  assert.equal(typeof calls[0], "string");
+  assert.match(calls[0], /"resolutionInputs"/);
+  assert.match(calls[0], /"owner"/);
+  assert.match(calls[0], /"decisionBasis"/);
+  assert.doesNotMatch(calls[0], /\[Object\]/);
+});

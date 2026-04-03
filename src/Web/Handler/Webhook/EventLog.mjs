@@ -72,10 +72,24 @@ export default class Github_Flows_Web_Handler_Webhook_EventLog {
    * @param {{ info?: (entry: unknown) => void }} [deps.sink]
    */
   constructor({ sink } = {}) {
-    const target = sink ?? console;
+    /**
+     * Preserve nested object structure in the default console output instead of
+     * letting Node collapse it to `[Object]`.
+     *
+     * @param {Github_Flows_Web_Handler_Webhook_EventLog__DecisionTraceEntry
+     *   | Github_Flows_Web_Handler_Webhook_EventLog__IngressEntry
+     *   | Github_Flows_Web_Handler_Webhook_EventLog__ReceptionEntry} entry
+     */
+    const emit = function (entry) {
+      if (sink?.info) {
+        sink.info(entry);
+      } else {
+        console.info(JSON.stringify(entry, null, 2));
+      }
+    };
 
     this.logReception = function ({ body, pathname, request }) {
-      target.info?.({
+      emit({
         type: "github-webhook",
         stage: "reception",
         pathname: sanitizeValue(pathname),
@@ -85,7 +99,7 @@ export default class Github_Flows_Web_Handler_Webhook_EventLog {
     };
 
     this.logIngress = function ({ outcome, reason }) {
-      target.info?.({
+      emit({
         type: "github-webhook",
         stage: "ingress",
         outcome,
@@ -94,7 +108,7 @@ export default class Github_Flows_Web_Handler_Webhook_EventLog {
     };
 
     this.logDecisionTrace = function ({ decision, decisionBasis, resolutionInputs }) {
-      target.info?.({
+      emit({
         type: "github-webhook",
         stage: "decision-trace",
         resolutionInputs: sanitizeValue(resolutionInputs),
