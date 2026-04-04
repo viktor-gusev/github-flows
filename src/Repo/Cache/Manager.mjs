@@ -57,12 +57,18 @@ function extractIdentity(repository) {
 export default class Github_Flows_Repo_Cache_Manager {
   /**
    * @param {object} deps
-   * @param {typeof import("node:child_process")} deps.childProcess
+    * @param {typeof import("node:child_process")} deps.childProcess
+   * @param {{ logComponentAction?: (entry: {
+   *   action: string,
+   *   component: string,
+   *   details?: unknown,
+   *   message: string
+   * }) => void }} [deps.logger]
    * @param {typeof import("node:fs/promises")} deps.fsPromises
    * @param {typeof import("node:path")} deps.pathModule
    * @param {Github_Flows_Config_Runtime} deps.runtime
    */
-  constructor({ childProcess, fsPromises, pathModule, runtime }) {
+  constructor({ childProcess, fsPromises, logger, pathModule, runtime }) {
     /**
      * @param {{ event: unknown }} params
      * @returns {Promise<{ action: "clone" | "pull", githubRepoId: number | string | undefined, owner: string, repo: string, path: string }>}
@@ -78,6 +84,12 @@ export default class Github_Flows_Repo_Cache_Manager {
 
       if (await isGitRepository(fsPromises, pathModule, repoPath)) {
         await runCommand(childProcess, "git", ["-C", repoPath, "pull", "--ff-only", "--depth=1"]);
+        logger?.logComponentAction?.({
+          component: "Github_Flows_Repo_Cache_Manager",
+          action: "pull",
+          details: { owner: identity.owner, path: repoPath, repo: identity.repo },
+          message: `Updated repository cache for ${identity.owner}/${identity.repo}.`,
+        });
         return { action: "pull", ...identity, path: repoPath };
       }
 
@@ -91,6 +103,12 @@ export default class Github_Flows_Repo_Cache_Manager {
         "--single-branch",
         "--no-tags",
       ]);
+      logger?.logComponentAction?.({
+        component: "Github_Flows_Repo_Cache_Manager",
+        action: "clone",
+        details: { owner: identity.owner, path: repoPath, repo: identity.repo },
+        message: `Cloned repository cache for ${identity.owner}/${identity.repo}.`,
+      });
       return { action: "clone", ...identity, path: repoPath };
     };
   }
@@ -100,6 +118,7 @@ export const __deps__ = Object.freeze({
   default: Object.freeze({
     childProcess: "node:child_process",
     fsPromises: "node:fs/promises",
+    logger: "Github_Flows_Logger$",
     pathModule: "node:path",
     runtime: "Github_Flows_Config_Runtime$",
   }),

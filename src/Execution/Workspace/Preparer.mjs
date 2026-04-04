@@ -88,6 +88,12 @@ export default class Github_Flows_Execution_Workspace_Preparer {
   /**
    * @param {object} deps
    * @param {typeof import("node:child_process")} deps.childProcess
+   * @param {{ logComponentAction?: (entry: {
+   *   action: string,
+   *   component: string,
+   *   details?: unknown,
+   *   message: string
+   * }) => void }} [deps.logger]
    * @param {typeof import("node:fs/promises")} deps.fsPromises
    * @param {typeof import("node:path")} deps.pathModule
    * @param {Github_Flows_Repo_Cache_Manager} deps.repoCacheManager
@@ -98,6 +104,7 @@ export default class Github_Flows_Execution_Workspace_Preparer {
   constructor({
     childProcess,
     fsPromises,
+    logger,
     nowFactory = () => new Date(),
     pathModule,
     randomIntFactory = (upperBound) => Math.floor(Math.random() * upperBound),
@@ -135,8 +142,26 @@ export default class Github_Flows_Execution_Workspace_Preparer {
 
       await assertWorkspaceIsAbsent(fsPromises, workspacePath);
       await fsPromises.mkdir(workspacePath, { recursive: true });
+      logger?.logComponentAction?.({
+        component: "Github_Flows_Execution_Workspace_Preparer",
+        action: "workspace-create",
+        details: { eventId, eventType, owner: identity.owner, repo: identity.repo, workspacePath },
+        message: `Created execution workspace for ${identity.owner}/${identity.repo}.`,
+      });
 
       await runCommand(childProcess, "git", ["clone", "--no-hardlinks", cacheEntry.path, repoPath]);
+      logger?.logComponentAction?.({
+        component: "Github_Flows_Execution_Workspace_Preparer",
+        action: "workspace-repo-clone",
+        details: {
+          owner: identity.owner,
+          repo: identity.repo,
+          repositoryCachePath: cacheEntry.path,
+          repoPath,
+          workspacePath,
+        },
+        message: `Cloned repository into execution workspace for ${identity.owner}/${identity.repo}.`,
+      });
 
       try {
         const { stdout } = await runCommand(childProcess, "git", [
@@ -172,6 +197,7 @@ export const __deps__ = Object.freeze({
   default: Object.freeze({
     childProcess: "node:child_process",
     fsPromises: "node:fs/promises",
+    logger: "Github_Flows_Logger$",
     pathModule: "node:path",
     repoCacheManager: "Github_Flows_Repo_Cache_Manager$",
     runtime: "Github_Flows_Config_Runtime$",

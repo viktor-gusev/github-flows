@@ -8,7 +8,7 @@ function createSink() {
 
   return {
     entries,
-    sink: {
+    logger: {
       info(entry) {
         entries.push(entry);
       },
@@ -17,8 +17,8 @@ function createSink() {
 }
 
 test("event logger records bounded inbound snapshot without authentication headers", async () => {
-  const { entries, sink } = createSink();
-  const logger = new Github_Flows_Web_Handler_Webhook_EventLog({ sink });
+  const { entries, logger: backendLogger } = createSink();
+  const logger = new Github_Flows_Web_Handler_Webhook_EventLog({ logger: backendLogger });
 
   logger.logReception({
     pathname: "/webhooks/github",
@@ -78,8 +78,8 @@ test("event logger records bounded inbound snapshot without authentication heade
 });
 
 test("event logger records bounded decision trace", async () => {
-  const { entries, sink } = createSink();
-  const logger = new Github_Flows_Web_Handler_Webhook_EventLog({ sink });
+  const { entries, logger: backendLogger } = createSink();
+  const logger = new Github_Flows_Web_Handler_Webhook_EventLog({ logger: backendLogger });
 
   logger.logDecisionTrace({
     resolutionInputs: {
@@ -143,7 +143,7 @@ test("event logger preserves nested structure in default console output", async 
   };
 
   try {
-    const logger = new Github_Flows_Web_Handler_Webhook_EventLog();
+    const logger = new Github_Flows_Web_Handler_Webhook_EventLog({});
 
     logger.logDecisionTrace({
       resolutionInputs: {

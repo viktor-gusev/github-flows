@@ -10,6 +10,7 @@ test("workspace preparer creates execution workspace and clones repository from 
   const workspaceRoot = await fs.mkdtemp(path.join(os.tmpdir(), "github-flows-ws-"));
   const cachePath = path.resolve(workspaceRoot, "cache", "repo", "octocat", "demo");
   const calls = [];
+  const logCalls = [];
   const preparer = new Github_Flows_Execution_Workspace_Preparer({
     childProcess: {
       execFile(command, args, callback) {
@@ -19,6 +20,11 @@ test("workspace preparer creates execution workspace and clones repository from 
           return;
         }
         callback(null, "", "");
+      },
+    },
+    logger: {
+      logComponentAction(entry) {
+        logCalls.push(entry);
       },
     },
     fsPromises: fs,
@@ -62,6 +68,32 @@ test("workspace preparer creates execution workspace and clones repository from 
       {
         command: "git",
         args: ["-C", path.resolve(result.workspacePath, "repo"), "remote", "set-url", "origin", "git@github.com:octocat/demo.git"],
+      },
+    ]);
+    assert.deepEqual(logCalls, [
+      {
+        component: "Github_Flows_Execution_Workspace_Preparer",
+        action: "workspace-create",
+        details: {
+          eventId: "evt-42",
+          eventType: "pull_request_opened",
+          owner: "octocat",
+          repo: "demo",
+          workspacePath: path.resolve(workspaceRoot, "ws", "octocat", "demo", "pull_request_opened", "evt-42"),
+        },
+        message: "Created execution workspace for octocat/demo.",
+      },
+      {
+        component: "Github_Flows_Execution_Workspace_Preparer",
+        action: "workspace-repo-clone",
+        details: {
+          owner: "octocat",
+          repo: "demo",
+          repositoryCachePath: cachePath,
+          repoPath: path.resolve(result.workspacePath, "repo"),
+          workspacePath: path.resolve(workspaceRoot, "ws", "octocat", "demo", "pull_request_opened", "evt-42"),
+        },
+        message: "Cloned repository into execution workspace for octocat/demo.",
       },
     ]);
   } finally {

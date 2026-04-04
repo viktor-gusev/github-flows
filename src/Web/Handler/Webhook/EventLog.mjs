@@ -72,10 +72,10 @@ function parseBody(body) {
  */
 export default class Github_Flows_Web_Handler_Webhook_EventLog {
   /**
-   * @param {object} [deps]
-   * @param {{ info?: (entry: unknown) => void }} [deps.sink]
+   * @param {object} deps
+   * @param {Github_Flows_Logger} deps.logger
    */
-  constructor({ sink } = {}) {
+  constructor({ logger }) {
     /**
      * Preserve nested object structure in the default console output instead of
      * letting Node collapse it to `[Object]`.
@@ -85,8 +85,8 @@ export default class Github_Flows_Web_Handler_Webhook_EventLog {
      *   | Github_Flows_Web_Handler_Webhook_EventLog__ReceptionEntry} entry
      */
     const emit = function (entry) {
-      if (sink?.info) {
-        sink.info(entry);
+      if (logger?.info) {
+        logger.info(entry);
       } else {
         console.info(JSON.stringify(entry, null, 2));
       }
@@ -124,5 +124,7 @@ export default class Github_Flows_Web_Handler_Webhook_EventLog {
 }
 
 export const __deps__ = Object.freeze({
-  default: Object.freeze({}),
+  default: Object.freeze({
+    logger: "Github_Flows_Logger$",
+  }),
 });

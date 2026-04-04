@@ -9,11 +9,17 @@ import Github_Flows_Repo_Cache_Manager from "../../../../src/Repo/Cache/Manager.
 test("repo cache manager clones missing repository into workspace cache", async () => {
   const workspaceRoot = await fs.mkdtemp(path.join(os.tmpdir(), "github-flows-cache-"));
   const calls = [];
+  const logCalls = [];
   const manager = new Github_Flows_Repo_Cache_Manager({
     childProcess: {
       execFile(command, args, callback) {
         calls.push({ command, args });
         callback(null);
+      },
+    },
+    logger: {
+      logComponentAction(entry) {
+        logCalls.push(entry);
       },
     },
     fsPromises: fs,
@@ -52,6 +58,18 @@ test("repo cache manager clones missing repository into workspace cache", async 
         ],
       },
     ]);
+    assert.deepEqual(logCalls, [
+      {
+        component: "Github_Flows_Repo_Cache_Manager",
+        action: "clone",
+        details: {
+          owner: "octocat",
+          path: path.resolve(workspaceRoot, "cache", "repo", "octocat", "demo"),
+          repo: "demo",
+        },
+        message: "Cloned repository cache for octocat/demo.",
+      },
+    ]);
   } finally {
     await fs.rm(workspaceRoot, { recursive: true, force: true });
   }
@@ -61,6 +79,7 @@ test("repo cache manager pulls existing repository cache", async () => {
   const workspaceRoot = await fs.mkdtemp(path.join(os.tmpdir(), "github-flows-cache-"));
   const repoPath = path.resolve(workspaceRoot, "cache", "repo", "octocat", "demo");
   const calls = [];
+  const logCalls = [];
   await fs.mkdir(path.join(repoPath, ".git"), { recursive: true });
 
   const manager = new Github_Flows_Repo_Cache_Manager({
@@ -68,6 +87,11 @@ test("repo cache manager pulls existing repository cache", async () => {
       execFile(command, args, callback) {
         calls.push({ command, args });
         callback(null);
+      },
+    },
+    logger: {
+      logComponentAction(entry) {
+        logCalls.push(entry);
       },
     },
     fsPromises: fs,
@@ -91,6 +115,18 @@ test("repo cache manager pulls existing repository cache", async () => {
       {
         command: "git",
         args: ["-C", repoPath, "pull", "--ff-only", "--depth=1"],
+      },
+    ]);
+    assert.deepEqual(logCalls, [
+      {
+        component: "Github_Flows_Repo_Cache_Manager",
+        action: "pull",
+        details: {
+          owner: "octocat",
+          path: repoPath,
+          repo: "demo",
+        },
+        message: "Updated repository cache for octocat/demo.",
       },
     ]);
   } finally {
