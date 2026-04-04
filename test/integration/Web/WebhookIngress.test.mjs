@@ -61,6 +61,9 @@ const waitForAddress = async function (server) {
 const createContainer = async function () {
   const container = new Container();
   container.enableTestMode();
+  container.register("Github_Flows_Repo_Cache_Manager$", {
+    async syncByGithubEvent() {},
+  });
   const registry = new NamespaceRegistry({ fs, path, appRoot: projectRoot });
   const entries = await registry.build();
   for (const entry of entries) {
@@ -93,7 +96,16 @@ test("webhook ingress is served on the static GitHub webhook path", async () => 
   try {
     await server.start();
     const address = await waitForAddress(server);
-    const validBody = '{"action":"opened"}';
+    const validBody = JSON.stringify({
+      action: "opened",
+      repository: {
+        id: 1,
+        name: "demo",
+        owner: {
+          login: "octocat",
+        },
+      },
+    });
 
     const ok = await sendRequest(address.port, {
       method: "POST",

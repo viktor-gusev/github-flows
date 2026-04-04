@@ -26,6 +26,14 @@ function readRawBody(request) {
 }
 
 /**
+ * @param {Buffer} body
+ * @returns {unknown}
+ */
+function parseJsonBody(body) {
+  return JSON.parse(body.toString("utf8"));
+}
+
+/**
  * GitHub webhook request handler.
  *
  * Implements `Fl32_Web_Back_Api_Handler` and processes only the static
@@ -37,10 +45,11 @@ export default class Github_Flows_Web_Handler_Webhook {
   /**
    * @param {object} deps
    * @param {Github_Flows_Web_Handler_Webhook_EventLog} deps.eventLog
+   * @param {Github_Flows_Repo_Cache_Manager} deps.repoCacheManager
    * @param {Github_Flows_Config_Runtime} deps.runtime
    * @param {Github_Flows_Web_Handler_Webhook_Signature} deps.signature
    */
-  constructor({ eventLog, runtime, signature }) {
+  constructor({ eventLog, repoCacheManager, runtime, signature }) {
     this.getRegistrationInfo = function () {
       return {
         name: "Github_Flows_Web_Handler_Webhook",
@@ -74,6 +83,30 @@ export default class Github_Flows_Web_Handler_Webhook {
         return;
       }
 
+      let payload;
+      try {
+        payload = parseJsonBody(body);
+      } catch {
+        eventLog.logIngress({ outcome: "rejected", reason: "invalid-json" });
+        if (!response.headersSent) {
+          response.writeHead(400, { "Content-Type": "application/json; charset=utf-8" });
+        }
+        response.end(JSON.stringify({ error: "invalid-json" }));
+        context.complete();
+        return;
+      }
+
+      try {
+        await repoCacheManager.syncByGithubEvent({ event: payload });
+      } catch {
+        if (!response.headersSent) {
+          response.writeHead(500, { "Content-Type": "application/json; charset=utf-8" });
+        }
+        response.end(JSON.stringify({ error: "repo-cache-failed" }));
+        context.complete();
+        return;
+      }
+
       eventLog.logIngress({ outcome: "admitted" });
       if (!response.headersSent) {
         response.writeHead(202, { "Content-Type": "application/json; charset=utf-8" });
@@ -87,6 +120,7 @@ export default class Github_Flows_Web_Handler_Webhook {
 export const __deps__ = Object.freeze({
   default: Object.freeze({
     eventLog: "Github_Flows_Web_Handler_Webhook_EventLog$",
+    repoCacheManager: "Github_Flows_Repo_Cache_Manager$",
     runtime: "Github_Flows_Config_Runtime$",
     signature: "Github_Flows_Web_Handler_Webhook_Signature$",
   }),

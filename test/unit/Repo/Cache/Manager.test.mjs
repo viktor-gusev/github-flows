@@ -1,0 +1,119 @@
+import assert from "node:assert/strict";
+import fs from "node:fs/promises";
+import os from "node:os";
+import path from "node:path";
+import test from "node:test";
+
+import Github_Flows_Repo_Cache_Manager from "../../../../src/Repo/Cache/Manager.mjs";
+
+test("repo cache manager clones missing repository into workspace cache", async () => {
+  const workspaceRoot = await fs.mkdtemp(path.join(os.tmpdir(), "github-flows-cache-"));
+  const calls = [];
+  const manager = new Github_Flows_Repo_Cache_Manager({
+    childProcess: {
+      execFile(command, args, callback) {
+        calls.push({ command, args });
+        callback(null);
+      },
+    },
+    fsPromises: fs,
+    pathModule: path,
+    runtime: { workspaceRoot },
+  });
+
+  try {
+    const result = await manager.syncByGithubEvent({
+      event: {
+        repository: {
+          id: 42,
+          name: "demo",
+          owner: { login: "octocat" },
+        },
+      },
+    });
+
+    assert.equal(result.action, "clone");
+    assert.equal(result.githubRepoId, 42);
+    assert.equal(result.owner, "octocat");
+    assert.equal(result.repo, "demo");
+    assert.equal(result.path, path.resolve(workspaceRoot, "cache", "repo", "octocat", "demo"));
+    assert.deepEqual(calls, [
+      {
+        command: "gh",
+        args: [
+          "repo",
+          "clone",
+          "octocat/demo",
+          path.resolve(workspaceRoot, "cache", "repo", "octocat", "demo"),
+          "--",
+          "--depth=1",
+          "--single-branch",
+          "--no-tags",
+        ],
+      },
+    ]);
+  } finally {
+    await fs.rm(workspaceRoot, { recursive: true, force: true });
+  }
+});
+
+test("repo cache manager pulls existing repository cache", async () => {
+  const workspaceRoot = await fs.mkdtemp(path.join(os.tmpdir(), "github-flows-cache-"));
+  const repoPath = path.resolve(workspaceRoot, "cache", "repo", "octocat", "demo");
+  const calls = [];
+  await fs.mkdir(path.join(repoPath, ".git"), { recursive: true });
+
+  const manager = new Github_Flows_Repo_Cache_Manager({
+    childProcess: {
+      execFile(command, args, callback) {
+        calls.push({ command, args });
+        callback(null);
+      },
+    },
+    fsPromises: fs,
+    pathModule: path,
+    runtime: { workspaceRoot },
+  });
+
+  try {
+    const result = await manager.syncByGithubEvent({
+      event: {
+        repository: {
+          id: 7,
+          name: "demo",
+          owner: { login: "octocat" },
+        },
+      },
+    });
+
+    assert.equal(result.action, "pull");
+    assert.deepEqual(calls, [
+      {
+        command: "git",
+        args: ["-C", repoPath, "pull", "--ff-only", "--depth=1"],
+      },
+    ]);
+  } finally {
+    await fs.rm(workspaceRoot, { recursive: true, force: true });
+  }
+});
+
+test("repo cache manager rejects payloads without repository identity", async () => {
+  const manager = new Github_Flows_Repo_Cache_Manager({
+    childProcess: {
+      execFile(_command, _args, callback) {
+        callback(new Error("must not be called"));
+      },
+    },
+    fsPromises: fs,
+    pathModule: path,
+    runtime: { workspaceRoot: "/tmp/github-flows" },
+  });
+
+  await assert.rejects(
+    manager.syncByGithubEvent({
+      event: { repository: { owner: { login: "octocat" } } },
+    }),
+    /repository name is missing/i,
+  );
+});
