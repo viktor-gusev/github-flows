@@ -34,6 +34,35 @@ function parseJsonBody(body) {
 }
 
 /**
+ * Temporary launch-contract bridge until execution-profile resolution and
+ * coordinator components are introduced.
+ *
+ * @param {{
+ *   repoPath: string,
+ *   workspacePath: string
+ * }} workspace
+ * @param {Github_Flows_Config_Runtime} runtime
+ * @returns {Github_Flows_Execution_Launch_Contract}
+ */
+function buildLaunchContract(workspace, runtime) {
+  return {
+    agent: {
+      type: "codex",
+      command: ["tee"],
+      args: ["/tmp/github-flows-prompt.txt"],
+      prompt: "Repository workspace prepared for GitHub event handling.",
+    },
+    environment: {
+      image: runtime.runtimeImage,
+      workspacePath: workspace.workspacePath,
+      setupScript: "test -d repo",
+      env: {},
+      timeoutSec: 1800,
+    },
+  };
+}
+
+/**
  * GitHub webhook request handler.
  *
  * Implements `Fl32_Web_Back_Api_Handler` and processes only the static
@@ -44,12 +73,13 @@ function parseJsonBody(body) {
 export default class Github_Flows_Web_Handler_Webhook {
   /**
    * @param {object} deps
+   * @param {Github_Flows_Execution_Runtime_Docker} deps.executionRuntimeDocker
    * @param {Github_Flows_Execution_Workspace_Preparer} deps.executionWorkspacePreparer
    * @param {Github_Flows_Web_Handler_Webhook_EventLog} deps.eventLog
    * @param {Github_Flows_Config_Runtime} deps.runtime
    * @param {Github_Flows_Web_Handler_Webhook_Signature} deps.signature
    */
-  constructor({ eventLog, executionWorkspacePreparer, runtime, signature }) {
+  constructor({ eventLog, executionRuntimeDocker, executionWorkspacePreparer, runtime, signature }) {
     this.getRegistrationInfo = function () {
       return {
         name: "Github_Flows_Web_Handler_Webhook",
@@ -97,7 +127,11 @@ export default class Github_Flows_Web_Handler_Webhook {
       }
 
       try {
-        await executionWorkspacePreparer.prepareByGithubEvent({ event: payload });
+        const workspace = await executionWorkspacePreparer.prepareByGithubEvent({ event: payload });
+        const outcome = await executionRuntimeDocker.run({ launchContract: buildLaunchContract(workspace, runtime) });
+        if (!outcome.completed || outcome.exit !== "success") {
+          throw new Error(`Execution runtime ended with status: ${outcome.exit}`);
+        }
       } catch {
         if (!response.headersSent) {
           response.writeHead(500, { "Content-Type": "application/json; charset=utf-8" });
@@ -120,6 +154,7 @@ export default class Github_Flows_Web_Handler_Webhook {
 export const __deps__ = Object.freeze({
   default: Object.freeze({
     eventLog: "Github_Flows_Web_Handler_Webhook_EventLog$",
+    executionRuntimeDocker: "Github_Flows_Execution_Runtime_Docker$",
     executionWorkspacePreparer: "Github_Flows_Execution_Workspace_Preparer$",
     runtime: "Github_Flows_Config_Runtime$",
     signature: "Github_Flows_Web_Handler_Webhook_Signature$",

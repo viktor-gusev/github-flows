@@ -30,11 +30,13 @@ function createRequest({ body = "{}", path = "/webhooks/github", secret = "share
 function createContext({ body = "{}", path = "/webhooks/github", secret = "shared-secret" } = {}) {
   const calls = [];
   const eventLogCalls = [];
+  const runtimeCalls = [];
   const workspaceCalls = [];
 
   return {
     calls,
     eventLogCalls,
+    runtimeCalls,
     workspaceCalls,
     eventLog: {
       logReception(entry) {
@@ -50,6 +52,22 @@ function createContext({ body = "{}", path = "/webhooks/github", secret = "share
     executionWorkspacePreparer: {
       async prepareByGithubEvent(entry) {
         workspaceCalls.push(entry);
+        return {
+          repoPath: "/tmp/workspace/repo",
+          workspacePath: "/tmp/workspace",
+        };
+      },
+    },
+    executionRuntimeDocker: {
+      async run(entry) {
+        runtimeCalls.push(entry);
+        return {
+          attempted: true,
+          completed: true,
+          exit: "success",
+          stderr: "",
+          stdout: "",
+        };
       },
     },
     context: {
@@ -73,8 +91,9 @@ function createContext({ body = "{}", path = "/webhooks/github", secret = "share
 test("webhook handler exposes teq-web handler contract", async () => {
   const handler = new Github_Flows_Web_Handler_Webhook({
     eventLog: {},
+    executionRuntimeDocker: { run: async () => ({ attempted: true, completed: true, exit: "success", stderr: "", stdout: "" }) },
     executionWorkspacePreparer: { prepareByGithubEvent: async () => {} },
-    runtime: { webhookSecret: "shared-secret" },
+    runtime: { webhookSecret: "shared-secret", runtimeImage: "codex-agent" },
     signature: { isValid: async () => true },
   });
 
@@ -96,13 +115,14 @@ test("webhook handler accepts matching webhook requests and logs admission after
       owner: { login: "octocat" },
     },
   };
-  const { calls, context, eventLog, eventLogCalls, executionWorkspacePreparer, workspaceCalls } = createContext({
+  const { calls, context, eventLog, eventLogCalls, executionRuntimeDocker, executionWorkspacePreparer, runtimeCalls, workspaceCalls } = createContext({
     body: JSON.stringify(payload),
   });
   const handler = new Github_Flows_Web_Handler_Webhook({
     eventLog,
+    executionRuntimeDocker,
     executionWorkspacePreparer,
-    runtime: { webhookSecret: "shared-secret" },
+    runtime: { webhookSecret: "shared-secret", runtimeImage: "codex-agent" },
     signature: { isValid: async () => true },
   });
 
@@ -110,6 +130,23 @@ test("webhook handler accepts matching webhook requests and logs admission after
 
   assert.equal(eventLogCalls[0].method, "logReception");
   assert.deepEqual(workspaceCalls, [{ event: payload }]);
+  assert.deepEqual(runtimeCalls, [{
+    launchContract: {
+      agent: {
+        type: "codex",
+        command: ["tee"],
+        args: ["/tmp/github-flows-prompt.txt"],
+        prompt: "Repository workspace prepared for GitHub event handling.",
+      },
+      environment: {
+        image: "codex-agent",
+        workspacePath: "/tmp/workspace",
+        setupScript: "test -d repo",
+        env: {},
+        timeoutSec: 1800,
+      },
+    },
+  }]);
   assert.deepEqual(eventLogCalls[1], {
     method: "logIngress",
     entry: { outcome: "admitted" },
@@ -132,8 +169,9 @@ test("webhook handler rejects invalid signature after reception logging", async 
   const { calls, context, eventLog, eventLogCalls, executionWorkspacePreparer, workspaceCalls } = createContext();
   const handler = new Github_Flows_Web_Handler_Webhook({
     eventLog,
+    executionRuntimeDocker: { run: async () => ({ attempted: true, completed: true, exit: "success", stderr: "", stdout: "" }) },
     executionWorkspacePreparer,
-    runtime: { webhookSecret: "shared-secret" },
+    runtime: { webhookSecret: "shared-secret", runtimeImage: "codex-agent" },
     signature: { isValid: async () => false },
   });
 
@@ -163,8 +201,9 @@ test("webhook handler ignores non-webhook paths", async () => {
   const { calls, context, eventLog, eventLogCalls, executionWorkspacePreparer } = createContext({ path: "/other" });
   const handler = new Github_Flows_Web_Handler_Webhook({
     eventLog,
+    executionRuntimeDocker: { run: async () => ({ attempted: true, completed: true, exit: "success", stderr: "", stdout: "" }) },
     executionWorkspacePreparer,
-    runtime: { webhookSecret: "shared-secret" },
+    runtime: { webhookSecret: "shared-secret", runtimeImage: "codex-agent" },
     signature: { isValid: async () => true },
   });
 
@@ -175,13 +214,14 @@ test("webhook handler ignores non-webhook paths", async () => {
 });
 
 test("webhook handler rejects invalid json after signature validation", async () => {
-  const { calls, context, eventLog, eventLogCalls, executionWorkspacePreparer, workspaceCalls } = createContext({
+  const { calls, context, eventLog, eventLogCalls, executionRuntimeDocker, executionWorkspacePreparer, workspaceCalls } = createContext({
     body: "{invalid-json",
   });
   const handler = new Github_Flows_Web_Handler_Webhook({
     eventLog,
+    executionRuntimeDocker,
     executionWorkspacePreparer,
-    runtime: { webhookSecret: "shared-secret" },
+    runtime: { webhookSecret: "shared-secret", runtimeImage: "codex-agent" },
     signature: { isValid: async () => true },
   });
 
@@ -221,13 +261,64 @@ test("webhook handler returns 500 if workspace preparation fails", async () => {
   });
   const handler = new Github_Flows_Web_Handler_Webhook({
     eventLog,
+    executionRuntimeDocker: {
+      async run() {
+        throw new Error("runtime failed");
+      },
+    },
+    executionWorkspacePreparer: {
+      async prepareByGithubEvent(entry) {
+        workspaceCalls.push(entry);
+        return {
+          repoPath: "/tmp/workspace/repo",
+          workspacePath: "/tmp/workspace",
+        };
+      },
+    },
+    runtime: { webhookSecret: "shared-secret", runtimeImage: "codex-agent" },
+    signature: { isValid: async () => true },
+  });
+
+  await handler.handle(context);
+
+  assert.equal(eventLogCalls[0].method, "logReception");
+  assert.deepEqual(workspaceCalls, [{ event: payload }]);
+  assert.deepEqual(calls, [
+    {
+      method: "writeHead",
+      code: 500,
+      headers: { "Content-Type": "application/json; charset=utf-8" },
+    },
+    {
+      method: "end",
+      body: JSON.stringify({ error: "workspace-prepare-failed" }),
+    },
+    { method: "complete" },
+  ]);
+});
+
+test("webhook handler returns 500 if workspace preparation fails", async () => {
+  const payload = {
+    action: "opened",
+    repository: {
+      id: 1,
+      name: "demo",
+      owner: { login: "octocat" },
+    },
+  };
+  const { calls, context, eventLog, eventLogCalls, workspaceCalls } = createContext({
+    body: JSON.stringify(payload),
+  });
+  const handler = new Github_Flows_Web_Handler_Webhook({
+    eventLog,
+    executionRuntimeDocker: { run: async () => ({ attempted: true, completed: true, exit: "success", stderr: "", stdout: "" }) },
     executionWorkspacePreparer: {
       async prepareByGithubEvent(entry) {
         workspaceCalls.push(entry);
         throw new Error("workspace failed");
       },
     },
-    runtime: { webhookSecret: "shared-secret" },
+    runtime: { webhookSecret: "shared-secret", runtimeImage: "codex-agent" },
     signature: { isValid: async () => true },
   });
 

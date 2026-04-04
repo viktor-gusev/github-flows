@@ -42,6 +42,29 @@ declare global {
   type Github_Flows_Config_Runtime = import("./src/Config/Runtime.mjs").Data;
   type Github_Flows_Config_Runtime__Wrapper = import("./src/Config/Runtime.mjs").default;
   type Github_Flows_Config_Runtime__Factory = import("./src/Config/Runtime.mjs").Factory;
+  type Github_Flows_Execution_Launch_Contract = {
+    agent: {
+      type: string,
+      command: string[],
+      args: string[],
+      prompt: string,
+    },
+    environment: {
+      image: string,
+      workspacePath: string,
+      setupScript: string,
+      env: Record<string, string>,
+      timeoutSec: number,
+    },
+  };
+  type Github_Flows_Execution_Runtime_Outcome = {
+    attempted: true,
+    completed: boolean,
+    exit: "success" | "failure" | "timeout",
+    stderr: string,
+    stdout: string,
+  };
+  type Github_Flows_Execution_Runtime_Docker = import("./src/Execution/Runtime/Docker.mjs").default;
   type Github_Flows_Execution_Workspace_Preparer = import("./src/Execution/Workspace/Preparer.mjs").default;
   type Github_Flows_Logger = import("./src/Logger.mjs").default;
   type Github_Flows_Repo_Cache_Manager = import("./src/Repo/Cache/Manager.mjs").default;
