@@ -14,6 +14,27 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const projectRoot = path.resolve(__dirname, "../../..");
 
+const installFakeGh = async function (workspaceRoot) {
+  const binDir = path.join(workspaceRoot, "bin");
+  const scriptPath = path.join(binDir, "gh");
+  await fs.mkdir(binDir, { recursive: true });
+  await fs.writeFile(
+    scriptPath,
+    `#!/usr/bin/env bash
+set -euo pipefail
+if [ "$1" = "repo" ] && [ "$2" = "clone" ]; then
+  target="$4"
+  mkdir -p "$target/.git"
+  exit 0
+fi
+exit 1
+`,
+    "utf8",
+  );
+  await fs.chmod(scriptPath, 0o755);
+  return binDir;
+};
+
 const sendRequest = function (port, { body = "", headers = {}, method = "GET", pathname = "/" } = {}) {
   return new Promise((resolve, reject) => {
     const request = http.request(
@@ -61,9 +82,6 @@ const waitForAddress = async function (server) {
 const createContainer = async function () {
   const container = new Container();
   container.enableTestMode();
-  container.register("Github_Flows_Repo_Cache_Manager$", {
-    async syncByGithubEvent() {},
-  });
   const registry = new NamespaceRegistry({ fs, path, appRoot: projectRoot });
   const entries = await registry.build();
   for (const entry of entries) {
@@ -80,6 +98,8 @@ const createSignature = function (secret, body) {
 test("webhook ingress is served on the static GitHub webhook path", async () => {
   const container = await createContainer();
   const workspaceRoot = await fs.mkdtemp(path.join(os.tmpdir(), "github-flows-"));
+  const fakeBinDir = await installFakeGh(workspaceRoot);
+  const originalPath = process.env.PATH;
   const runtimeFactory = await container.get("Github_Flows_Config_Runtime__Factory$");
   const server = await container.get("Github_Flows_Web_Server$");
   const secret = "shared-secret";
@@ -92,6 +112,7 @@ test("webhook ingress is served on the static GitHub webhook path", async () => 
     webhookSecret: secret,
   });
   runtimeFactory.freeze();
+  process.env.PATH = `${fakeBinDir}:${originalPath ?? ""}`;
 
   try {
     await server.start();
@@ -140,6 +161,7 @@ test("webhook ingress is served on the static GitHub webhook path", async () => 
     assert.equal(unauthorized.statusCode, 401);
     assert.equal(unauthorized.body, '{"error":"unauthorized"}');
   } finally {
+    process.env.PATH = originalPath;
     await server.stop();
     await fs.rm(workspaceRoot, { recursive: true, force: true });
   }
