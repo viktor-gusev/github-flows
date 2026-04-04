@@ -14,19 +14,23 @@ const HTTPS_PREFIX = "https://";
 function sanitizeValue(value) {
   if (typeof value === "string") {
     if (value.startsWith(HTTPS_PREFIX)) {
-      return REPLACEMENT;
+      return undefined;
     }
     return value.length > MAX_LOG_VALUE_LENGTH ? REPLACEMENT : value;
   }
 
   if (Array.isArray(value)) {
-    return value.map(sanitizeValue);
+    return value
+      .map(sanitizeValue)
+      .filter((item) => item !== undefined);
   }
 
   if (value && typeof value === "object") {
     // Preserve nested request/detail hierarchy while applying the same bounded logging rule.
     return Object.fromEntries(
-      Object.entries(value).map(([key, item]) => [key, sanitizeValue(item)]),
+      Object.entries(value)
+        .map(([key, item]) => [key, sanitizeValue(item)])
+        .filter(([, item]) => item !== undefined),
     );
   }
 
@@ -92,7 +96,7 @@ export default class Github_Flows_Web_Handler_Webhook_EventLog {
       emit({
         type: "github-webhook",
         stage: "reception",
-        pathname: sanitizeValue(pathname),
+        pathname,
         headers: selectHeaders(request.headers),
         body: parseBody(body),
       });
