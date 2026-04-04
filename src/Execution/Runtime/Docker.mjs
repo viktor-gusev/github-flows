@@ -97,7 +97,7 @@ function buildDockerArgs(contract) {
 
   args.push(
     contract.environment.image,
-    "sh",
+    "bash",
     "-lc",
     buildShellScript(contract),
   );

@@ -66,7 +66,7 @@ test("docker runtime starts container from launch contract", async () => {
       "DEMO=1",
     ]);
     assert.equal(calls[0].args[9], "codex-agent");
-    assert.equal(calls[0].args[10], "sh");
+    assert.equal(calls[0].args[10], "bash");
     assert.equal(calls[0].args[11], "-lc");
     assert.match(calls[0].args[12], /cd '\/workspace'/);
     assert.match(calls[0].args[12], /test -d repo/);
