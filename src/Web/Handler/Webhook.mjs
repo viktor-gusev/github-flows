@@ -44,12 +44,12 @@ function parseJsonBody(body) {
 export default class Github_Flows_Web_Handler_Webhook {
   /**
    * @param {object} deps
+   * @param {Github_Flows_Execution_Workspace_Preparer} deps.executionWorkspacePreparer
    * @param {Github_Flows_Web_Handler_Webhook_EventLog} deps.eventLog
-   * @param {Github_Flows_Repo_Cache_Manager} deps.repoCacheManager
    * @param {Github_Flows_Config_Runtime} deps.runtime
    * @param {Github_Flows_Web_Handler_Webhook_Signature} deps.signature
    */
-  constructor({ eventLog, repoCacheManager, runtime, signature }) {
+  constructor({ eventLog, executionWorkspacePreparer, runtime, signature }) {
     this.getRegistrationInfo = function () {
       return {
         name: "Github_Flows_Web_Handler_Webhook",
@@ -97,12 +97,12 @@ export default class Github_Flows_Web_Handler_Webhook {
       }
 
       try {
-        await repoCacheManager.syncByGithubEvent({ event: payload });
+        await executionWorkspacePreparer.prepareByGithubEvent({ event: payload });
       } catch {
         if (!response.headersSent) {
           response.writeHead(500, { "Content-Type": "application/json; charset=utf-8" });
         }
-        response.end(JSON.stringify({ error: "repo-cache-failed" }));
+        response.end(JSON.stringify({ error: "workspace-prepare-failed" }));
         context.complete();
         return;
       }
@@ -120,7 +120,7 @@ export default class Github_Flows_Web_Handler_Webhook {
 export const __deps__ = Object.freeze({
   default: Object.freeze({
     eventLog: "Github_Flows_Web_Handler_Webhook_EventLog$",
-    repoCacheManager: "Github_Flows_Repo_Cache_Manager$",
+    executionWorkspacePreparer: "Github_Flows_Execution_Workspace_Preparer$",
     runtime: "Github_Flows_Config_Runtime$",
     signature: "Github_Flows_Web_Handler_Webhook_Signature$",
   }),

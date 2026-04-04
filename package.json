@@ -46,8 +46,7 @@
     ]
   },
   "dependencies": {
-    "@flancer32/teq-web": "^0.10.0",
-    "@teqfw/di": "github:teqfw/di"
+    "@flancer32/teq-web": "^0.10.0"
   },
   "devDependencies": {
     "@types/node": "*"

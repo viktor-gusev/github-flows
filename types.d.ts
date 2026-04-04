@@ -34,6 +34,7 @@ declare global {
   type Github_Flows_Config_Runtime = import("./src/Config/Runtime.mjs").Data;
   type Github_Flows_Config_Runtime__Wrapper = import("./src/Config/Runtime.mjs").default;
   type Github_Flows_Config_Runtime__Factory = import("./src/Config/Runtime.mjs").Factory;
+  type Github_Flows_Execution_Workspace_Preparer = import("./src/Execution/Workspace/Preparer.mjs").default;
   type Github_Flows_Repo_Cache_Manager = import("./src/Repo/Cache/Manager.mjs").default;
   type Node_ChildProcess = typeof import("node:child_process");
   type Node_Fs_Promises = typeof import("node:fs/promises");
