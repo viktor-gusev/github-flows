@@ -1,3 +1,6 @@
+/**
+ * Runs one resolved launch contract inside an isolated Docker container.
+ */
 const CONTAINER_WORKSPACE_PATH = "/workspace";
 
 function quoteShell(value) {

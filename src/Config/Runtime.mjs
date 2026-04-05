@@ -3,9 +3,6 @@
  */
 export class Data {
   /** @type {string} */
-  runtimeImage;
-
-  /** @type {string} */
   httpHost;
 
   /** @type {number} */
@@ -49,9 +46,6 @@ export class Factory {
       if (params.workspaceRoot !== undefined && cfg.workspaceRoot === undefined) {
         cfg.workspaceRoot = params.workspaceRoot;
       }
-      if (params.runtimeImage !== undefined && cfg.runtimeImage === undefined) {
-        cfg.runtimeImage = params.runtimeImage;
-      }
       if (params.webhookSecret !== undefined && cfg.webhookSecret === undefined) {
         cfg.webhookSecret = params.webhookSecret;
       }
@@ -67,9 +61,6 @@ export class Factory {
 
       if (cfg.workspaceRoot === undefined) {
         throw new Error("Missing required runtime configuration field: workspaceRoot");
-      }
-      if (cfg.runtimeImage === undefined) {
-        throw new Error("Missing required runtime configuration field: runtimeImage");
       }
       if (cfg.webhookSecret === undefined) {
         throw new Error("Missing required runtime configuration field: webhookSecret");

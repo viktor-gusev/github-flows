@@ -30,14 +30,14 @@ function createRequest({ body = "{}", path = "/webhooks/github", secret = "share
 function createContext({ body = "{}", path = "/webhooks/github", secret = "shared-secret" } = {}) {
   const calls = [];
   const eventLogCalls = [];
-  const runtimeCalls = [];
-  const workspaceCalls = [];
+  const startCalls = [];
+  const resolveCalls = [];
 
   return {
     calls,
     eventLogCalls,
-    runtimeCalls,
-    workspaceCalls,
+    startCalls,
+    resolveCalls,
     eventLog: {
       logReception(entry) {
         eventLogCalls.push({ method: "logReception", entry });
@@ -49,18 +49,52 @@ function createContext({ body = "{}", path = "/webhooks/github", secret = "share
         eventLogCalls.push({ method: "logDecisionTrace", entry });
       },
     },
-    executionWorkspacePreparer: {
-      async prepareByGithubEvent(entry) {
-        workspaceCalls.push(entry);
+    executionProfileResolver: {
+      async resolveByGithubEvent(entry) {
+        resolveCalls.push(entry);
         return {
-          repoPath: "/tmp/workspace/repo",
-          workspacePath: "/tmp/workspace",
+          applicabilityBasis: {
+            action: "opened",
+            event: "issues",
+            repository: "octocat/demo",
+          },
+          eventAttributes: {
+            action: "opened",
+            event: "issues",
+            repository: "octocat/demo",
+          },
+          matchedCandidates: [
+            {
+              id: "issues/profile.json",
+              orderKey: "issues/profile.json",
+              specificity: 3,
+              trigger: {
+                action: "opened",
+                event: "issues",
+                repository: "octocat/demo",
+              },
+            },
+          ],
+          selectedProfile: {
+            id: "issues/profile.json",
+            orderKey: "issues/profile.json",
+            trigger: {
+              action: "opened",
+              event: "issues",
+              repository: "octocat/demo",
+            },
+            launch: {
+              agent: { type: "codex" },
+              prompt: "Repository workspace prepared for GitHub event handling.",
+              runtime: { image: "profile-image" },
+            },
+          },
         };
       },
     },
-    executionRuntimeDocker: {
-      async run(entry) {
-        runtimeCalls.push(entry);
+    executionStartCoordinator: {
+      async start(entry) {
+        startCalls.push(entry);
         return {
           attempted: true,
           completed: true,
@@ -91,9 +125,9 @@ function createContext({ body = "{}", path = "/webhooks/github", secret = "share
 test("webhook handler exposes teq-web handler contract", async () => {
   const handler = new Github_Flows_Web_Handler_Webhook({
     eventLog: {},
-    executionRuntimeDocker: { run: async () => ({ attempted: true, completed: true, exit: "success", stderr: "", stdout: "" }) },
-    executionWorkspacePreparer: { prepareByGithubEvent: async () => {} },
-    runtime: { webhookSecret: "shared-secret", runtimeImage: "codex-agent" },
+    executionProfileResolver: { resolveByGithubEvent: async () => ({ selectedProfile: null, matchedCandidates: [], eventAttributes: {}, applicabilityBasis: null }) },
+    executionStartCoordinator: { start: async () => ({ attempted: true, completed: true, exit: "success", stderr: "", stdout: "" }) },
+    runtime: { webhookSecret: "shared-secret" },
     signature: { isValid: async () => true },
   });
 
@@ -115,39 +149,81 @@ test("webhook handler accepts matching webhook requests and logs admission after
       owner: { login: "octocat" },
     },
   };
-  const { calls, context, eventLog, eventLogCalls, executionRuntimeDocker, executionWorkspacePreparer, runtimeCalls, workspaceCalls } = createContext({
+  const { calls, context, eventLog, eventLogCalls, executionProfileResolver, executionStartCoordinator, resolveCalls, startCalls } = createContext({
     body: JSON.stringify(payload),
   });
   const handler = new Github_Flows_Web_Handler_Webhook({
     eventLog,
-    executionRuntimeDocker,
-    executionWorkspacePreparer,
-    runtime: { webhookSecret: "shared-secret", runtimeImage: "codex-agent" },
+    executionProfileResolver,
+    executionStartCoordinator,
+    runtime: { webhookSecret: "shared-secret" },
     signature: { isValid: async () => true },
   });
 
   await handler.handle(context);
 
   assert.equal(eventLogCalls[0].method, "logReception");
-  assert.deepEqual(workspaceCalls, [{ event: payload }]);
-  assert.deepEqual(runtimeCalls, [{
-    launchContract: {
-      agent: {
-        type: "codex",
-        command: ["tee"],
-        args: ["/tmp/github-flows-prompt.txt"],
-        prompt: "Repository workspace prepared for GitHub event handling.",
+  assert.deepEqual(resolveCalls, [{
+    headers: context.request.headers,
+    payload,
+  }]);
+  assert.deepEqual(startCalls, [{
+    event: payload,
+    selectedProfile: {
+      id: "issues/profile.json",
+      orderKey: "issues/profile.json",
+      trigger: {
+        action: "opened",
+        event: "issues",
+        repository: "octocat/demo",
       },
-      environment: {
-        image: "codex-agent",
-        workspacePath: "/tmp/workspace",
-        setupScript: "test -d repo",
-        env: {},
-        timeoutSec: 1800,
+      launch: {
+        agent: { type: "codex" },
+        prompt: "Repository workspace prepared for GitHub event handling.",
+        runtime: { image: "profile-image" },
       },
     },
   }]);
   assert.deepEqual(eventLogCalls[1], {
+    method: "logDecisionTrace",
+    entry: {
+      resolutionInputs: {
+        action: "opened",
+        event: "issues",
+        repository: "octocat/demo",
+      },
+      decisionBasis: {
+        applicabilityBasis: {
+          action: "opened",
+          event: "issues",
+          repository: "octocat/demo",
+        },
+        matchedCandidates: [
+          {
+            id: "issues/profile.json",
+            orderKey: "issues/profile.json",
+            specificity: 3,
+            trigger: {
+              action: "opened",
+              event: "issues",
+              repository: "octocat/demo",
+            },
+          },
+        ],
+        selectedProfile: {
+          id: "issues/profile.json",
+          orderKey: "issues/profile.json",
+          trigger: {
+            action: "opened",
+            event: "issues",
+            repository: "octocat/demo",
+          },
+        },
+      },
+      decision: "start",
+    },
+  });
+  assert.deepEqual(eventLogCalls[2], {
     method: "logIngress",
     entry: { outcome: "admitted" },
   });
@@ -166,19 +242,19 @@ test("webhook handler accepts matching webhook requests and logs admission after
 });
 
 test("webhook handler rejects invalid signature after reception logging", async () => {
-  const { calls, context, eventLog, eventLogCalls, executionWorkspacePreparer, workspaceCalls } = createContext();
+  const { calls, context, eventLog, eventLogCalls, executionProfileResolver, resolveCalls } = createContext();
   const handler = new Github_Flows_Web_Handler_Webhook({
     eventLog,
-    executionRuntimeDocker: { run: async () => ({ attempted: true, completed: true, exit: "success", stderr: "", stdout: "" }) },
-    executionWorkspacePreparer,
-    runtime: { webhookSecret: "shared-secret", runtimeImage: "codex-agent" },
+    executionProfileResolver,
+    executionStartCoordinator: { start: async () => ({ attempted: true, completed: true, exit: "success", stderr: "", stdout: "" }) },
+    runtime: { webhookSecret: "shared-secret" },
     signature: { isValid: async () => false },
   });
 
   await handler.handle(context);
 
   assert.equal(eventLogCalls[0].method, "logReception");
-  assert.deepEqual(workspaceCalls, []);
+  assert.deepEqual(resolveCalls, []);
   assert.deepEqual(eventLogCalls[1], {
     method: "logIngress",
     entry: { outcome: "rejected", reason: "invalid-signature" },
@@ -198,12 +274,12 @@ test("webhook handler rejects invalid signature after reception logging", async 
 });
 
 test("webhook handler ignores non-webhook paths", async () => {
-  const { calls, context, eventLog, eventLogCalls, executionWorkspacePreparer } = createContext({ path: "/other" });
+  const { calls, context, eventLog, eventLogCalls, executionProfileResolver } = createContext({ path: "/other" });
   const handler = new Github_Flows_Web_Handler_Webhook({
     eventLog,
-    executionRuntimeDocker: { run: async () => ({ attempted: true, completed: true, exit: "success", stderr: "", stdout: "" }) },
-    executionWorkspacePreparer,
-    runtime: { webhookSecret: "shared-secret", runtimeImage: "codex-agent" },
+    executionProfileResolver,
+    executionStartCoordinator: { start: async () => ({ attempted: true, completed: true, exit: "success", stderr: "", stdout: "" }) },
+    runtime: { webhookSecret: "shared-secret" },
     signature: { isValid: async () => true },
   });
 
@@ -214,21 +290,21 @@ test("webhook handler ignores non-webhook paths", async () => {
 });
 
 test("webhook handler rejects invalid json after signature validation", async () => {
-  const { calls, context, eventLog, eventLogCalls, executionRuntimeDocker, executionWorkspacePreparer, workspaceCalls } = createContext({
+  const { calls, context, eventLog, eventLogCalls, executionProfileResolver, resolveCalls } = createContext({
     body: "{invalid-json",
   });
   const handler = new Github_Flows_Web_Handler_Webhook({
     eventLog,
-    executionRuntimeDocker,
-    executionWorkspacePreparer,
-    runtime: { webhookSecret: "shared-secret", runtimeImage: "codex-agent" },
+    executionProfileResolver,
+    executionStartCoordinator: { start: async () => ({ attempted: true, completed: true, exit: "success", stderr: "", stdout: "" }) },
+    runtime: { webhookSecret: "shared-secret" },
     signature: { isValid: async () => true },
   });
 
   await handler.handle(context);
 
   assert.equal(eventLogCalls[0].method, "logReception");
-  assert.deepEqual(workspaceCalls, []);
+  assert.deepEqual(resolveCalls, []);
   assert.deepEqual(eventLogCalls[1], {
     method: "logIngress",
     entry: { outcome: "rejected", reason: "invalid-json" },
@@ -247,7 +323,7 @@ test("webhook handler rejects invalid json after signature validation", async ()
   ]);
 });
 
-test("webhook handler returns 500 if workspace preparation fails", async () => {
+test("webhook handler returns 500 if execution start fails", async () => {
   const payload = {
     action: "opened",
     repository: {
@@ -256,33 +332,27 @@ test("webhook handler returns 500 if workspace preparation fails", async () => {
       owner: { login: "octocat" },
     },
   };
-  const { calls, context, eventLog, eventLogCalls, workspaceCalls } = createContext({
+  const { calls, context, eventLog, eventLogCalls, executionProfileResolver, resolveCalls, startCalls } = createContext({
     body: JSON.stringify(payload),
   });
   const handler = new Github_Flows_Web_Handler_Webhook({
     eventLog,
-    executionRuntimeDocker: {
-      async run() {
+    executionProfileResolver,
+    executionStartCoordinator: {
+      async start(entry) {
+        startCalls.push(entry);
         throw new Error("runtime failed");
       },
     },
-    executionWorkspacePreparer: {
-      async prepareByGithubEvent(entry) {
-        workspaceCalls.push(entry);
-        return {
-          repoPath: "/tmp/workspace/repo",
-          workspacePath: "/tmp/workspace",
-        };
-      },
-    },
-    runtime: { webhookSecret: "shared-secret", runtimeImage: "codex-agent" },
+    runtime: { webhookSecret: "shared-secret" },
     signature: { isValid: async () => true },
   });
 
   await handler.handle(context);
 
   assert.equal(eventLogCalls[0].method, "logReception");
-  assert.deepEqual(workspaceCalls, [{ event: payload }]);
+  assert.equal(resolveCalls.length, 1);
+  assert.equal(startCalls.length, 1);
   assert.deepEqual(calls, [
     {
       method: "writeHead",
@@ -297,7 +367,7 @@ test("webhook handler returns 500 if workspace preparation fails", async () => {
   ]);
 });
 
-test("webhook handler returns 500 if workspace preparation fails", async () => {
+test("webhook handler skips execution when no profile matches", async () => {
   const payload = {
     action: "opened",
     repository: {
@@ -306,35 +376,59 @@ test("webhook handler returns 500 if workspace preparation fails", async () => {
       owner: { login: "octocat" },
     },
   };
-  const { calls, context, eventLog, eventLogCalls, workspaceCalls } = createContext({
+  const { calls, context, eventLog, eventLogCalls, executionStartCoordinator, startCalls } = createContext({
     body: JSON.stringify(payload),
   });
   const handler = new Github_Flows_Web_Handler_Webhook({
     eventLog,
-    executionRuntimeDocker: { run: async () => ({ attempted: true, completed: true, exit: "success", stderr: "", stdout: "" }) },
-    executionWorkspacePreparer: {
-      async prepareByGithubEvent(entry) {
-        workspaceCalls.push(entry);
-        throw new Error("workspace failed");
+    executionProfileResolver: {
+      async resolveByGithubEvent() {
+        return {
+          applicabilityBasis: null,
+          eventAttributes: {
+            action: "opened",
+            event: "issues",
+            repository: "octocat/demo",
+          },
+          matchedCandidates: [],
+          selectedProfile: null,
+        };
       },
     },
-    runtime: { webhookSecret: "shared-secret", runtimeImage: "codex-agent" },
+    executionStartCoordinator,
+    runtime: { webhookSecret: "shared-secret" },
     signature: { isValid: async () => true },
   });
 
   await handler.handle(context);
 
   assert.equal(eventLogCalls[0].method, "logReception");
-  assert.deepEqual(workspaceCalls, [{ event: payload }]);
+  assert.deepEqual(startCalls, []);
+  assert.deepEqual(eventLogCalls[1], {
+    method: "logDecisionTrace",
+    entry: {
+      resolutionInputs: {
+        action: "opened",
+        event: "issues",
+        repository: "octocat/demo",
+      },
+      decisionBasis: {
+        applicabilityBasis: null,
+        matchedCandidates: [],
+        selectedProfile: null,
+      },
+      decision: "skip",
+    },
+  });
   assert.deepEqual(calls, [
     {
       method: "writeHead",
-      code: 500,
+      code: 202,
       headers: { "Content-Type": "application/json; charset=utf-8" },
     },
     {
       method: "end",
-      body: JSON.stringify({ error: "workspace-prepare-failed" }),
+      body: JSON.stringify({ status: "accepted" }),
     },
     { method: "complete" },
   ]);

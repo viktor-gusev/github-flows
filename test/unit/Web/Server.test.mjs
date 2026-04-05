@@ -61,7 +61,6 @@ async function createRuntimeConfig({ port = 3000 } = {}) {
     httpHost: "127.0.0.1",
     httpPort: port,
     workspaceRoot: "./var/work",
-    runtimeImage: "codex-agent",
     webhookSecret: "shared-secret",
   });
   factory.freeze();

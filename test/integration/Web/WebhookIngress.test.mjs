@@ -66,6 +66,31 @@ exit 1
   return binDir;
 };
 
+const installFakeDocker = async function (workspaceRoot) {
+  const binDir = path.join(workspaceRoot, "bin");
+  const scriptPath = path.join(binDir, "docker");
+  await fs.mkdir(binDir, { recursive: true });
+  await fs.writeFile(
+    scriptPath,
+    `#!/usr/bin/env bash
+set -euo pipefail
+if [ "$1" = "run" ]; then
+  exit 0
+fi
+exit 1
+`,
+    "utf8",
+  );
+  await fs.chmod(scriptPath, 0o755);
+  return binDir;
+};
+
+const writeProfile = async function (workspaceRoot, relativeDir, content) {
+  const directory = path.join(workspaceRoot, "cfg", relativeDir);
+  await fs.mkdir(directory, { recursive: true });
+  await fs.writeFile(path.join(directory, "profile.json"), JSON.stringify(content, null, 2), "utf8");
+};
+
 const sendRequest = function (port, { body = "", headers = {}, method = "GET", pathname = "/" } = {}) {
   return new Promise((resolve, reject) => {
     const request = http.request(
@@ -131,6 +156,7 @@ test("webhook ingress is served on the static GitHub webhook path", { timeout: 5
   const workspaceRoot = await fs.mkdtemp(path.join(os.tmpdir(), "github-flows-"));
   const fakeGhDir = await installFakeGh(workspaceRoot);
   const fakeGitDir = await installFakeGit(workspaceRoot);
+  const fakeDockerDir = await installFakeDocker(workspaceRoot);
   const originalPath = process.env.PATH;
   const runtimeFactory = await container.get("Github_Flows_Config_Runtime__Factory$");
   const server = await container.get("Github_Flows_Web_Server$");
@@ -140,13 +166,28 @@ test("webhook ingress is served on the static GitHub webhook path", { timeout: 5
     httpHost: "127.0.0.1",
     httpPort: 0,
     workspaceRoot,
-    runtimeImage: "codex-agent",
     webhookSecret: secret,
   });
   runtimeFactory.freeze();
-  process.env.PATH = `${fakeGitDir}:${fakeGhDir}:${originalPath ?? ""}`;
+  process.env.PATH = `${fakeDockerDir}:${fakeGitDir}:${fakeGhDir}:${originalPath ?? ""}`;
 
   try {
+    await writeProfile(workspaceRoot, "issues", {
+      trigger: {
+        event: "issues",
+        repository: "octocat/demo",
+        action: "opened",
+      },
+      launch: {
+        agent: {
+          type: "codex",
+        },
+        prompt: "Repository workspace prepared for GitHub event handling.",
+        runtime: {
+          image: "profile-image",
+        },
+      },
+    });
     await server.start();
     const address = await waitForAddress(server);
     const validBody = JSON.stringify({
@@ -166,6 +207,7 @@ test("webhook ingress is served on the static GitHub webhook path", { timeout: 5
       pathname: "/webhooks/github",
       body: validBody,
       headers: {
+        "x-github-event": "issues",
         "x-hub-signature-256": createSignature(secret, validBody),
       },
     });
@@ -175,6 +217,7 @@ test("webhook ingress is served on the static GitHub webhook path", { timeout: 5
       pathname: "/missing",
       body: validBody,
       headers: {
+        "x-github-event": "issues",
         "x-hub-signature-256": createSignature(secret, validBody),
       },
     });
@@ -184,6 +227,7 @@ test("webhook ingress is served on the static GitHub webhook path", { timeout: 5
       pathname: "/webhooks/github",
       body: validBody,
       headers: {
+        "x-github-event": "issues",
         "x-hub-signature-256": createSignature("wrong-secret", validBody),
       },
     });

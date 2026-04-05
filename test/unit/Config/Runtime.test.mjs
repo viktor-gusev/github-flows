@@ -12,7 +12,6 @@ test("runtime config data has defaults", async () => {
   assert.equal(data.httpHost, undefined);
   assert.equal(data.httpPort, undefined);
   assert.equal(data.workspaceRoot, undefined);
-  assert.equal(data.runtimeImage, undefined);
   assert.equal(data.webhookSecret, undefined);
 });
 
@@ -40,7 +39,6 @@ test("factory applies values and freezes required configuration", async () => {
     httpHost: "0.0.0.0",
     httpPort: 8080,
     workspaceRoot: "./var/work",
-    runtimeImage: "codex-agent",
     webhookSecret: "shared-secret",
   });
   factory.freeze();
@@ -48,7 +46,6 @@ test("factory applies values and freezes required configuration", async () => {
   assert.equal(runtime.httpHost, "0.0.0.0");
   assert.equal(runtime.httpPort, 8080);
   assert.equal(runtime.workspaceRoot, "./var/work");
-  assert.equal(runtime.runtimeImage, "codex-agent");
   assert.equal(runtime.webhookSecret, "shared-secret");
   assert.equal(runtime.webConfig, webConfig);
   assert.deepEqual(webConfigCalls, [
@@ -72,7 +69,6 @@ test("factory rejects missing required fields", async () => {
   });
 
   factory.configure({
-    runtimeImage: "codex-agent",
     webhookSecret: "shared-secret",
   });
 
@@ -95,7 +91,6 @@ test("wrapper rejects access before initialization", async () => {
 
   factory.configure({
     workspaceRoot: "./var/work",
-    runtimeImage: "codex-agent",
     webhookSecret: "shared-secret",
   });
 
