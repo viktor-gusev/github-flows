@@ -55,8 +55,10 @@ function mergeCandidateFragments(fragments) {
     };
     const launch = deepMerge(result.launch, fragment.launch);
     const type = typeof fragment.type === "string" ? fragment.type : result.type;
-    return { launch, trigger, type };
-  }, { trigger: {}, launch: {}, type: undefined });
+    const nextHandler = asRecord(asRecord(fragment.launch).handler);
+    const promptRefBaseDir = typeof nextHandler.promptRef === "string" ? fragment.directory : result.promptRefBaseDir;
+    return { launch, promptRefBaseDir, trigger, type };
+  }, { trigger: {}, launch: {}, type: undefined, promptRefBaseDir: undefined });
 }
 
 function normalizeRelativePath(pathValue) {
@@ -123,6 +125,7 @@ export default class Github_Flows_Execution_Profile_Resolver {
       const parsed = JSON.parse(content);
       return {
         launch: asRecord(asRecord(parsed).launch),
+        directory: pathModule.dirname(pathModule.relative(pathModule.resolve(runtime.workspaceRoot, "cfg"), absolutePath)).split("\\").join("/"),
         type: typeof asRecord(parsed).type === "string" ? asRecord(parsed).type : undefined,
         trigger: asRecord(asRecord(parsed).trigger),
       };
@@ -260,6 +263,7 @@ export default class Github_Flows_Execution_Profile_Resolver {
               id: effective.id,
               launch: effective.profile.launch,
               orderKey: effective.orderKey,
+              promptRefBaseDir: effective.profile.promptRefBaseDir,
               type: effective.profile.type,
               trigger: effective.profile.trigger,
             }

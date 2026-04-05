@@ -28,6 +28,12 @@ test("execution start coordinator prepares workspace and materializes launch con
         };
       },
     },
+    executionPromptMaterializer: {
+      async materialize(entry) {
+        calls.push({ method: "materialize", entry });
+        return "Solve the task.";
+      },
+    },
     executionRuntimeDocker: {
       async run(entry) {
         calls.push({ method: "run", entry });
@@ -50,6 +56,7 @@ test("execution start coordinator prepares workspace and materializes launch con
     selectedProfile: {
       id: "a/profile.json",
       orderKey: "a/profile.json",
+      promptRefBaseDir: "a",
       type: "docker",
       trigger: { event: "issues" },
       launch: {
@@ -57,8 +64,8 @@ test("execution start coordinator prepares workspace and materializes launch con
           type: "codex",
           command: ["node", "bin/agent.mjs"],
           args: ["--mode", "run"],
+          promptRef: "default.md",
         },
-        prompt: "Solve the task.",
         runtime: {
           image: "profile-image",
           setupScript: "test -d repo",
@@ -79,11 +86,13 @@ test("execution start coordinator prepares workspace and materializes launch con
   assert.deepEqual(calls, [
     { method: "prepareByGithubEvent", entry: { event: { id: "evt-1" } } },
     {
-      method: "create",
+      method: "materialize",
       entry: {
+        event: { id: "evt-1" },
         selectedProfile: {
           id: "a/profile.json",
           orderKey: "a/profile.json",
+          promptRefBaseDir: "a",
           type: "docker",
           trigger: { event: "issues" },
           launch: {
@@ -91,8 +100,39 @@ test("execution start coordinator prepares workspace and materializes launch con
               type: "codex",
               command: ["node", "bin/agent.mjs"],
               args: ["--mode", "run"],
+              promptRef: "default.md",
             },
-            prompt: "Solve the task.",
+            runtime: {
+              image: "profile-image",
+              setupScript: "test -d repo",
+              env: { DEMO: "1" },
+              timeoutSec: 99,
+            },
+          },
+        },
+        workspace: {
+          workspaceRoot: "/tmp/github-flows",
+          workspacePath: "/tmp/github-flows/ws/octocat/demo/issues/evt-1",
+        },
+      },
+    },
+    {
+      method: "create",
+      entry: {
+        prompt: "Solve the task.",
+        selectedProfile: {
+          id: "a/profile.json",
+          orderKey: "a/profile.json",
+          promptRefBaseDir: "a",
+          type: "docker",
+          trigger: { event: "issues" },
+          launch: {
+            handler: {
+              type: "codex",
+              command: ["node", "bin/agent.mjs"],
+              args: ["--mode", "run"],
+              promptRef: "default.md",
+            },
             runtime: {
               image: "profile-image",
               setupScript: "test -d repo",
@@ -139,6 +179,11 @@ test("execution start coordinator requires profile runtime image", async () => {
         throw new Error("Missing required launch field: launch.runtime.image");
       },
     },
+    executionPromptMaterializer: {
+      async materialize() {
+        return "Solve the task.";
+      },
+    },
     executionRuntimeDocker: {
       async run() {
         throw new Error("must not run");
@@ -157,9 +202,10 @@ test("execution start coordinator requires profile runtime image", async () => {
       selectedProfile: {
         id: "a/profile.json",
         orderKey: "a/profile.json",
+        promptRefBaseDir: "a",
         type: "docker",
         trigger: {},
-        launch: { handler: { type: "codex" }, runtime: {} },
+        launch: { handler: { type: "codex", promptRef: "default.md" }, runtime: {} },
       },
     }),
     /launch\.runtime\.image/,

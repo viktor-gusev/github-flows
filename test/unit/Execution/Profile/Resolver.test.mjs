@@ -27,16 +27,14 @@ test("profile resolver merges fragment chain from root to leaf candidate", async
       type: "docker",
       trigger: { event: "issues" },
       launch: {
-        handler: { type: "codex", command: ["node", "root.mjs"], args: [] },
-        prompt: "root prompt",
+        handler: { type: "codex", command: ["node", "root.mjs"], args: [], promptRef: "root.md" },
         runtime: { image: "root-image", setupScript: "test -d repo", env: { ROOT: "1" }, timeoutSec: 60 },
       },
     });
     await writeProfile(workspaceRoot, path.join("a", "b"), {
       trigger: { action: "opened", repository: "octocat/demo" },
       launch: {
-        handler: { command: ["node", "leaf.mjs"], args: ["--leaf"] },
-        prompt: "leaf prompt",
+        handler: { command: ["node", "leaf.mjs"], args: ["--leaf"], promptRef: "leaf.md" },
         runtime: { image: "leaf-image", setupScript: "test -d repo", env: { LEAF: "1" } },
       },
     });
@@ -64,8 +62,8 @@ test("profile resolver merges fragment chain from root to leaf candidate", async
         type: "codex",
         command: ["node", "leaf.mjs"],
         args: ["--leaf"],
+        promptRef: "leaf.md",
       },
-      prompt: "leaf prompt",
       runtime: {
         image: "leaf-image",
         env: {
@@ -77,6 +75,7 @@ test("profile resolver merges fragment chain from root to leaf candidate", async
       },
     });
     assert.equal(result.selectedProfile?.type, "docker");
+    assert.equal(result.selectedProfile?.promptRefBaseDir, "a/b");
     assert.equal(logs[0].action, "resolve-effective-profile");
   } finally {
     await fs.rm(workspaceRoot, { recursive: true, force: true });
@@ -95,12 +94,12 @@ test("profile resolver selects highest specificity then stable filesystem order"
     await writeProfile(workspaceRoot, "a", {
       type: "docker",
       trigger: { event: "issues", repository: "octocat/demo" },
-      launch: { handler: { type: "codex", command: ["node"], args: [] }, prompt: "a", runtime: { image: "a-image", setupScript: "true", env: {}, timeoutSec: 30 } },
+      launch: { handler: { type: "codex", command: ["node"], args: [], promptRef: "a.md" }, runtime: { image: "a-image", setupScript: "true", env: {}, timeoutSec: 30 } },
     });
     await writeProfile(workspaceRoot, "b", {
       type: "docker",
       trigger: { event: "issues", action: "opened" },
-      launch: { handler: { type: "codex", command: ["node"], args: [] }, prompt: "b", runtime: { image: "b-image", setupScript: "true", env: {}, timeoutSec: 30 } },
+      launch: { handler: { type: "codex", command: ["node"], args: [], promptRef: "b.md" }, runtime: { image: "b-image", setupScript: "true", env: {}, timeoutSec: 30 } },
     });
 
     let result = await resolver.resolveByGithubEvent({
@@ -137,7 +136,7 @@ test("profile resolver returns no selected profile when nothing matches", async 
     await writeProfile(workspaceRoot, ".", {
       type: "docker",
       trigger: { event: "pull_request" },
-      launch: { handler: { type: "codex", command: ["node"], args: [] }, prompt: "pr", runtime: { image: "pr-image", setupScript: "true", env: {}, timeoutSec: 30 } },
+      launch: { handler: { type: "codex", command: ["node"], args: [], promptRef: "pr.md" }, runtime: { image: "pr-image", setupScript: "true", env: {}, timeoutSec: 30 } },
     });
 
     const result = await resolver.resolveByGithubEvent({

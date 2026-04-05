@@ -52,12 +52,13 @@ export default class Github_Flows_Execution_Launch_Contract_Factory {
   constructor({ logger }) {
     /**
      * @param {{
+     *   prompt: string,
      *   selectedProfile: Github_Flows_Execution_Profile__Selected,
      *   workspace: Github_Flows_Execution_Workspace
      * }} params
      * @returns {Github_Flows_Execution_Launch_Contract}
      */
-    this.create = function ({ selectedProfile, workspace }) {
+    this.create = function ({ prompt, selectedProfile, workspace }) {
       const launch = asRecord(selectedProfile.launch);
       const handler = asRecord(launch.handler);
       const runtime = asRecord(launch.runtime);
@@ -68,7 +69,7 @@ export default class Github_Flows_Execution_Launch_Contract_Factory {
           type: requireString(handler.type, "launch.handler.type"),
           command: requireStringArray(handler.command, "launch.handler.command"),
           args: requireStringArray(handler.args, "launch.handler.args"),
-          prompt: requireString(launch.prompt, "launch.prompt"),
+          prompt: requireString(prompt, "prepared.prompt"),
         },
         environment: {
           image: requireString(runtime.image, "launch.runtime.image"),

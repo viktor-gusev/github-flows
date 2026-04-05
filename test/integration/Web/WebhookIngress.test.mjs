@@ -91,6 +91,12 @@ const writeProfile = async function (workspaceRoot, relativeDir, content) {
   await fs.writeFile(path.join(directory, "profile.json"), JSON.stringify(content, null, 2), "utf8");
 };
 
+const writePrompt = async function (workspaceRoot, relativePath, content) {
+  const filePath = path.join(workspaceRoot, "cfg", relativePath);
+  await fs.mkdir(path.dirname(filePath), { recursive: true });
+  await fs.writeFile(filePath, content, "utf8");
+};
+
 const sendRequest = function (port, { body = "", headers = {}, method = "GET", pathname = "/" } = {}) {
   return new Promise((resolve, reject) => {
     const request = http.request(
@@ -184,8 +190,8 @@ test("webhook ingress is served on the static GitHub webhook path", { timeout: 5
           type: "codex",
           command: ["node"],
           args: [],
+          promptRef: "default.md",
         },
-        prompt: "Repository workspace prepared for GitHub event handling.",
         runtime: {
           image: "profile-image",
           setupScript: "true",
@@ -194,6 +200,7 @@ test("webhook ingress is served on the static GitHub webhook path", { timeout: 5
         },
       },
     });
+    await writePrompt(workspaceRoot, path.join("issues", "default.md"), "Repository {{repo}} prepared at {{workspacePath}}.");
     await server.start();
     const address = await waitForAddress(server);
     const validBody = JSON.stringify({

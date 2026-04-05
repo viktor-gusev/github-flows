@@ -47,8 +47,8 @@ declare global {
       type: string,
       command: string[],
       args: string[],
+      promptRef?: string,
     },
-    prompt: string,
     runtime: {
       image: string,
       setupScript: string,
@@ -60,6 +60,7 @@ declare global {
     id: string,
     launch: Github_Flows_Execution_Profile__Launch,
     orderKey: string,
+    promptRefBaseDir: string | undefined,
     trigger: Record<string, unknown>,
     type: string | undefined,
   };
@@ -103,6 +104,7 @@ declare global {
     stdout: string,
   };
   type Github_Flows_Execution_Launch_Contract_Factory = import("./src/Execution/Launch/Contract/Factory.mjs").default;
+  type Github_Flows_Execution_Preparation_Prompt_Materializer = import("./src/Execution/Preparation/Prompt/Materializer.mjs").default;
   type Github_Flows_Execution_Runtime_Docker = import("./src/Execution/Runtime/Docker.mjs").default;
   type Github_Flows_Execution_Workspace_Preparer = import("./src/Execution/Workspace/Preparer.mjs").default;
   type Github_Flows_Logger = import("./src/Logger.mjs").default;

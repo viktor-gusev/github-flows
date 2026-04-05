@@ -5,6 +5,7 @@ export default class Github_Flows_Execution_Start_Coordinator {
   /**
    * @param {object} deps
    * @param {Github_Flows_Execution_Launch_Contract_Factory} deps.executionLaunchContractFactory
+   * @param {Github_Flows_Execution_Preparation_Prompt_Materializer} deps.executionPromptMaterializer
    * @param {Github_Flows_Execution_Runtime_Docker} deps.executionRuntimeDocker
    * @param {Github_Flows_Execution_Workspace_Preparer} deps.executionWorkspacePreparer
    * @param {{ logComponentAction?: (entry: {
@@ -14,7 +15,7 @@ export default class Github_Flows_Execution_Start_Coordinator {
    *   message: string
    * }) => void }} [deps.logger]
    */
-  constructor({ executionLaunchContractFactory, executionRuntimeDocker, executionWorkspacePreparer, logger }) {
+  constructor({ executionLaunchContractFactory, executionPromptMaterializer, executionRuntimeDocker, executionWorkspacePreparer, logger }) {
     /**
      * @param {{
      *   event: unknown,
@@ -36,7 +37,8 @@ export default class Github_Flows_Execution_Start_Coordinator {
       });
 
       const workspace = await executionWorkspacePreparer.prepareByGithubEvent({ event });
-      const launchContract = executionLaunchContractFactory.create({ selectedProfile, workspace });
+      const prompt = await executionPromptMaterializer.materialize({ event, selectedProfile, workspace });
+      const launchContract = executionLaunchContractFactory.create({ prompt, selectedProfile, workspace });
 
       logger?.logComponentAction?.({
         component: "Github_Flows_Execution_Start_Coordinator",
@@ -61,6 +63,7 @@ export default class Github_Flows_Execution_Start_Coordinator {
 export const __deps__ = Object.freeze({
   default: Object.freeze({
     executionLaunchContractFactory: "Github_Flows_Execution_Launch_Contract_Factory$",
+    executionPromptMaterializer: "Github_Flows_Execution_Preparation_Prompt_Materializer$",
     executionRuntimeDocker: "Github_Flows_Execution_Runtime_Docker$",
     executionWorkspacePreparer: "Github_Flows_Execution_Workspace_Preparer$",
     logger: "Github_Flows_Logger$",

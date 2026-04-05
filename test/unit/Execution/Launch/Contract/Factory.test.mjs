@@ -7,9 +7,11 @@ test("launch contract factory creates fully resolved contract from explicit prof
   const factory = new Github_Flows_Execution_Launch_Contract_Factory({});
 
   const contract = factory.create({
+    prompt: "Solve the task.",
     selectedProfile: {
       id: "issues/profile.json",
       orderKey: "issues/profile.json",
+      promptRefBaseDir: "issues",
       trigger: { event: "issues" },
       type: "docker",
       launch: {
@@ -17,8 +19,8 @@ test("launch contract factory creates fully resolved contract from explicit prof
           type: "codex",
           command: ["node", "bin/agent.mjs"],
           args: ["--mode", "run"],
+          promptRef: "default.md",
         },
-        prompt: "Solve the task.",
         runtime: {
           image: "codex-agent",
           setupScript: "test -d repo",
@@ -63,17 +65,19 @@ test("launch contract factory fails when explicit fields are missing", () => {
   const factory = new Github_Flows_Execution_Launch_Contract_Factory({});
 
   assert.throws(() => factory.create({
+    prompt: "Solve the task.",
     selectedProfile: {
       id: "issues/profile.json",
       orderKey: "issues/profile.json",
+      promptRefBaseDir: "issues",
       trigger: { event: "issues" },
       type: "docker",
       launch: {
         handler: {
           type: "codex",
           command: ["node"],
+          promptRef: "default.md",
         },
-        prompt: "Solve the task.",
         runtime: {
           image: "codex-agent",
           setupScript: "test -d repo",
