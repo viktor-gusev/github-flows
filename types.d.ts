@@ -42,31 +42,67 @@ declare global {
   type Github_Flows_Config_Runtime = import("./src/Config/Runtime.mjs").Data;
   type Github_Flows_Config_Runtime__Wrapper = import("./src/Config/Runtime.mjs").default;
   type Github_Flows_Config_Runtime__Factory = import("./src/Config/Runtime.mjs").Factory;
-  type Github_Flows_Execution_Profile_Resolver = import("./src/Execution/Profile/Resolver.mjs").default;
-  type Github_Flows_Execution_Start_Coordinator = import("./src/Execution/Start/Coordinator.mjs").default;
-  type Github_Flows_Execution_Launch_Contract = {
-    agent: {
+  type Github_Flows_Execution_Profile__Launch = {
+    handler: {
       type: string,
       command: string[],
       args: string[],
-      prompt: string,
     },
-    environment: {
+    prompt: string,
+    runtime: {
       image: string,
-      workspaceRoot: string,
-      workspacePath: string,
       setupScript: string,
       env: Record<string, string>,
       timeoutSec: number,
     },
   };
-  type Github_Flows_Execution_Runtime_Outcome = {
+  type Github_Flows_Execution_Profile__Selected = {
+    id: string,
+    launch: Github_Flows_Execution_Profile__Launch,
+    orderKey: string,
+    trigger: Record<string, unknown>,
+    type: string | undefined,
+  };
+  type Github_Flows_Execution_Profile_Resolver = import("./src/Execution/Profile/Resolver.mjs").default;
+  type Github_Flows_Execution_Launch_Contract__Handler = {
+    type: string,
+    command: string[],
+    args: string[],
+    prompt: string,
+  };
+  type Github_Flows_Execution_Launch_Contract__Environment = {
+    image: string,
+    workspaceRoot: string,
+    workspacePath: string,
+    setupScript: string,
+    env: Record<string, string>,
+    timeoutSec: number,
+  };
+  type Github_Flows_Execution_Start_Coordinator = import("./src/Execution/Start/Coordinator.mjs").default;
+  type Github_Flows_Execution_Launch_Contract = {
+    type: string,
+    handler: Github_Flows_Execution_Launch_Contract__Handler,
+    environment: Github_Flows_Execution_Launch_Contract__Environment,
+  };
+  type Github_Flows_Execution_Workspace = {
+    eventId: string,
+    eventType: string,
+    githubRepoId: number | string | undefined,
+    owner: string,
+    repo: string,
+    repoPath: string,
+    repositoryCachePath: string,
+    workspaceRoot: string,
+    workspacePath: string,
+  };
+  type Github_Flows_Execution_Runtime_Result = {
     attempted: true,
     completed: boolean,
     exit: "success" | "failure" | "timeout",
     stderr: string,
     stdout: string,
   };
+  type Github_Flows_Execution_Launch_Contract_Factory = import("./src/Execution/Launch/Contract/Factory.mjs").default;
   type Github_Flows_Execution_Runtime_Docker = import("./src/Execution/Runtime/Docker.mjs").default;
   type Github_Flows_Execution_Workspace_Preparer = import("./src/Execution/Workspace/Preparer.mjs").default;
   type Github_Flows_Logger = import("./src/Logger.mjs").default;

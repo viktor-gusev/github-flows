@@ -77,7 +77,8 @@ test("docker runtime starts container from launch contract", async () => {
   try {
     const result = await runtime.run({
       launchContract: {
-        agent: {
+        type: "docker",
+        handler: {
           type: "codex",
           command: ["node", "bin/agent.mjs"],
           args: ["--mode", "run"],
@@ -179,7 +180,8 @@ test("docker runtime reports timeout outcome", async () => {
   try {
     const result = await runtime.run({
       launchContract: {
-        agent: { command: ["echo"], args: ["hi"], prompt: "", type: "codex" },
+        type: "docker",
+        handler: { command: ["echo"], args: ["hi"], prompt: "", type: "codex" },
         environment: { image: "codex-agent", workspaceRoot, workspacePath, setupScript: "", env: {}, timeoutSec: 1 },
       },
     });

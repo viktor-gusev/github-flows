@@ -78,15 +78,16 @@ function createContext({ body = "{}", path = "/webhooks/github", secret = "share
           selectedProfile: {
             id: "issues/profile.json",
             orderKey: "issues/profile.json",
+            type: "docker",
             trigger: {
               action: "opened",
               event: "issues",
               repository: "octocat/demo",
             },
             launch: {
-              agent: { type: "codex" },
+              handler: { type: "codex", command: ["node"], args: [] },
               prompt: "Repository workspace prepared for GitHub event handling.",
-              runtime: { image: "profile-image" },
+              runtime: { image: "profile-image", setupScript: "true", env: {}, timeoutSec: 30 },
             },
           },
         };
@@ -172,15 +173,16 @@ test("webhook handler accepts matching webhook requests and logs admission after
     selectedProfile: {
       id: "issues/profile.json",
       orderKey: "issues/profile.json",
+      type: "docker",
       trigger: {
         action: "opened",
         event: "issues",
         repository: "octocat/demo",
       },
       launch: {
-        agent: { type: "codex" },
+        handler: { type: "codex", command: ["node"], args: [] },
         prompt: "Repository workspace prepared for GitHub event handling.",
-        runtime: { image: "profile-image" },
+        runtime: { image: "profile-image", setupScript: "true", env: {}, timeoutSec: 30 },
       },
     },
   }]);

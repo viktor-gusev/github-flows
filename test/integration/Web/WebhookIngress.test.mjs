@@ -173,18 +173,24 @@ test("webhook ingress is served on the static GitHub webhook path", { timeout: 5
 
   try {
     await writeProfile(workspaceRoot, "issues", {
+      type: "docker",
       trigger: {
         event: "issues",
         repository: "octocat/demo",
         action: "opened",
       },
       launch: {
-        agent: {
+        handler: {
           type: "codex",
+          command: ["node"],
+          args: [],
         },
         prompt: "Repository workspace prepared for GitHub event handling.",
         runtime: {
           image: "profile-image",
+          setupScript: "true",
+          env: {},
+          timeoutSec: 30,
         },
       },
     });

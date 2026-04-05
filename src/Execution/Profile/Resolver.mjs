@@ -54,8 +54,9 @@ function mergeCandidateFragments(fragments) {
       ...asRecord(fragment.trigger),
     };
     const launch = deepMerge(result.launch, fragment.launch);
-    return { launch, trigger };
-  }, { trigger: {}, launch: {} });
+    const type = typeof fragment.type === "string" ? fragment.type : result.type;
+    return { launch, trigger, type };
+  }, { trigger: {}, launch: {}, type: undefined });
 }
 
 function normalizeRelativePath(pathValue) {
@@ -122,6 +123,7 @@ export default class Github_Flows_Execution_Profile_Resolver {
       const parsed = JSON.parse(content);
       return {
         launch: asRecord(asRecord(parsed).launch),
+        type: typeof asRecord(parsed).type === "string" ? asRecord(parsed).type : undefined,
         trigger: asRecord(asRecord(parsed).trigger),
       };
     };
@@ -258,6 +260,7 @@ export default class Github_Flows_Execution_Profile_Resolver {
               id: effective.id,
               launch: effective.profile.launch,
               orderKey: effective.orderKey,
+              type: effective.profile.type,
               trigger: effective.profile.trigger,
             }
           : null,

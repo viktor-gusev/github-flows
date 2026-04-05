@@ -14,16 +14,19 @@ function validateLaunchContract(contract) {
     throw new Error("Launch contract is required.");
   }
 
-  const { agent, environment } = /** @type {{ agent?: unknown, environment?: unknown }} */ (contract);
+  const { environment, handler, type } = /** @type {{ environment?: unknown, handler?: unknown, type?: unknown }} */ (contract);
 
-  if (!agent || (typeof agent !== "object")) {
-    throw new Error("Launch contract agent is required.");
+  if (type !== "docker") {
+    throw new Error("Launch contract type must be docker.");
+  }
+  if (!handler || (typeof handler !== "object")) {
+    throw new Error("Launch contract handler is required.");
   }
   if (!environment || (typeof environment !== "object")) {
     throw new Error("Launch contract environment is required.");
   }
 
-  const typedAgent = /** @type {{ command?: unknown, args?: unknown, prompt?: unknown, type?: unknown }} */ (agent);
+  const typedHandler = /** @type {{ command?: unknown, args?: unknown, prompt?: unknown, type?: unknown }} */ (handler);
   const typedEnvironment = /** @type {{ env?: unknown, image?: unknown, setupScript?: unknown, timeoutSec?: unknown, workspacePath?: unknown, workspaceRoot?: unknown }} */ (environment);
 
   if ((typeof typedEnvironment.image !== "string") || typedEnvironment.image.length === 0) {
@@ -35,39 +38,45 @@ function validateLaunchContract(contract) {
   if ((typeof typedEnvironment.workspacePath !== "string") || typedEnvironment.workspacePath.length === 0) {
     throw new Error("Launch contract environment.workspacePath is required.");
   }
-  if (!Array.isArray(typedAgent.command) || typedAgent.command.length === 0 || typedAgent.command.some((item) => typeof item !== "string" || item.length === 0)) {
-    throw new Error("Launch contract agent.command must be a non-empty string array.");
+  if (typeof typedEnvironment.setupScript !== "string") {
+    throw new Error("Launch contract environment.setupScript is required.");
   }
-  if ((typedAgent.args !== undefined) && (!Array.isArray(typedAgent.args) || typedAgent.args.some((item) => typeof item !== "string"))) {
-    throw new Error("Launch contract agent.args must be a string array.");
+  if ((typedEnvironment.env === null) || (typeof typedEnvironment.env !== "object") || Array.isArray(typedEnvironment.env)) {
+    throw new Error("Launch contract environment.env is required.");
   }
   if ((typeof typedEnvironment.timeoutSec !== "number") || !Number.isInteger(typedEnvironment.timeoutSec) || typedEnvironment.timeoutSec <= 0) {
     throw new Error("Launch contract environment.timeoutSec must be a positive integer.");
   }
-  if ((typedEnvironment.setupScript !== undefined) && (typeof typedEnvironment.setupScript !== "string")) {
-    throw new Error("Launch contract environment.setupScript must be a string.");
+  for (const [key, value] of Object.entries(/** @type {Record<string, unknown>} */ (typedEnvironment.env))) {
+    if (typeof value !== "string") {
+      throw new Error(`Launch contract environment.env.${key} must be a string.`);
+    }
   }
-  if ((typedEnvironment.env !== undefined) && ((typedEnvironment.env === null) || (typeof typedEnvironment.env !== "object") || Array.isArray(typedEnvironment.env))) {
-    throw new Error("Launch contract environment.env must be an object.");
+  if ((typeof typedHandler.type !== "string") || typedHandler.type.length === 0) {
+    throw new Error("Launch contract handler.type is required.");
   }
-  if ((typedAgent.prompt !== undefined) && (typeof typedAgent.prompt !== "string")) {
-    throw new Error("Launch contract agent.prompt must be a string.");
+  if (!Array.isArray(typedHandler.command) || typedHandler.command.length === 0 || typedHandler.command.some((item) => typeof item !== "string" || item.length === 0)) {
+    throw new Error("Launch contract handler.command must be a non-empty string array.");
   }
-  if ((typedAgent.type !== undefined) && (typeof typedAgent.type !== "string")) {
-    throw new Error("Launch contract agent.type must be a string.");
+  if (!Array.isArray(typedHandler.args) || typedHandler.args.some((item) => typeof item !== "string")) {
+    throw new Error("Launch contract handler.args must be a string array.");
+  }
+  if (typeof typedHandler.prompt !== "string") {
+    throw new Error("Launch contract handler.prompt is required.");
   }
 
   return {
-    agent: {
-      args: typedAgent.args ?? [],
-      command: typedAgent.command,
-      prompt: typedAgent.prompt ?? "",
-      type: typedAgent.type ?? "agent",
+    type,
+    handler: {
+      args: typedHandler.args,
+      command: typedHandler.command,
+      prompt: typedHandler.prompt,
+      type: typedHandler.type,
     },
     environment: {
-      env: /** @type {Record<string, string>} */ (typedEnvironment.env ?? {}),
+      env: /** @type {Record<string, string>} */ (typedEnvironment.env),
       image: typedEnvironment.image,
-      setupScript: typedEnvironment.setupScript ?? "",
+      setupScript: typedEnvironment.setupScript,
       timeoutSec: typedEnvironment.timeoutSec,
       workspaceRoot: typedEnvironment.workspaceRoot,
       workspacePath: typedEnvironment.workspacePath,
@@ -77,9 +86,9 @@ function validateLaunchContract(contract) {
 
 function buildShellScript(contract) {
   const setupScript = contract.environment.setupScript.trim();
-  const command = [...contract.agent.command, ...contract.agent.args].map(quoteShell).join(" ");
-  const prompt = contract.agent.prompt.length > 0
-    ? `printf %s ${quoteShell(contract.agent.prompt)} | ${command}`
+  const command = [...contract.handler.command, ...contract.handler.args].map(quoteShell).join(" ");
+  const prompt = contract.handler.prompt.length > 0
+    ? `printf %s ${quoteShell(contract.handler.prompt)} | ${command}`
     : command;
   return [
     "set -euo pipefail",
@@ -246,13 +255,7 @@ export default class Github_Flows_Execution_Runtime_Docker {
   constructor({ childProcess, fsModule, fsPromises, logger, pathModule }) {
     /**
      * @param {{ launchContract: Github_Flows_Execution_Launch_Contract }} params
-     * @returns {Promise<{
-     *   attempted: true,
-     *   completed: boolean,
-     *   exit: "success" | "failure" | "timeout",
-     *   stderr: string,
-     *   stdout: string
-     * }>}
+     * @returns {Promise<Github_Flows_Execution_Runtime_Result>}
      */
     this.run = async function ({ launchContract }) {
       const contract = validateLaunchContract(launchContract);
@@ -267,7 +270,7 @@ export default class Github_Flows_Execution_Runtime_Docker {
           workspaceRoot: contract.environment.workspaceRoot,
           workspacePath: contract.environment.workspacePath,
         },
-        message: `Starting containerized execution for ${contract.agent.type}.`,
+        message: `Starting containerized execution for ${contract.handler.type}.`,
       });
 
       try {
@@ -280,7 +283,7 @@ export default class Github_Flows_Execution_Runtime_Docker {
             workspaceRoot: contract.environment.workspaceRoot,
             workspacePath: contract.environment.workspacePath,
           },
-          message: `Completed containerized execution for ${contract.agent.type}.`,
+          message: `Completed containerized execution for ${contract.handler.type}.`,
         });
         return {
           attempted: true,
@@ -303,8 +306,8 @@ export default class Github_Flows_Execution_Runtime_Docker {
             workspacePath: contract.environment.workspacePath,
           },
           message: exit === "timeout"
-            ? `Timed out containerized execution for ${contract.agent.type}.`
-            : `Failed containerized execution for ${contract.agent.type}.`,
+            ? `Timed out containerized execution for ${contract.handler.type}.`
+            : `Failed containerized execution for ${contract.handler.type}.`,
         });
         return {
           attempted: true,
