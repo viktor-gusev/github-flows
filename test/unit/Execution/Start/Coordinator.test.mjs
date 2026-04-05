@@ -18,6 +18,7 @@ test("execution start coordinator prepares workspace and materializes launch con
             prompt: "Solve the task.",
           },
           environment: {
+            dockerArgs: ["--mount", "type=bind,src=/home/codex/.codex,dst=/home/codex/.codex"],
             image: "profile-image",
             workspaceRoot: "/tmp/github-flows",
             workspacePath: "/tmp/github-flows/ws/octocat/demo/issues/evt-1",
@@ -59,7 +60,7 @@ test("execution start coordinator prepares workspace and materializes launch con
       promptRefBaseDir: "a",
       type: "docker",
       trigger: { event: "issues" },
-      launch: {
+      execution: {
         handler: {
           type: "codex",
           command: ["node", "bin/agent.mjs"],
@@ -67,6 +68,7 @@ test("execution start coordinator prepares workspace and materializes launch con
           promptRef: "default.md",
         },
         runtime: {
+          dockerArgs: ["--mount", "type=bind,src=/home/codex/.codex,dst=/home/codex/.codex"],
           image: "profile-image",
           setupScript: "test -d repo",
           env: { DEMO: "1" },
@@ -95,7 +97,7 @@ test("execution start coordinator prepares workspace and materializes launch con
           promptRefBaseDir: "a",
           type: "docker",
           trigger: { event: "issues" },
-          launch: {
+          execution: {
             handler: {
               type: "codex",
               command: ["node", "bin/agent.mjs"],
@@ -103,6 +105,7 @@ test("execution start coordinator prepares workspace and materializes launch con
               promptRef: "default.md",
             },
             runtime: {
+              dockerArgs: ["--mount", "type=bind,src=/home/codex/.codex,dst=/home/codex/.codex"],
               image: "profile-image",
               setupScript: "test -d repo",
               env: { DEMO: "1" },
@@ -126,7 +129,7 @@ test("execution start coordinator prepares workspace and materializes launch con
           promptRefBaseDir: "a",
           type: "docker",
           trigger: { event: "issues" },
-          launch: {
+          execution: {
             handler: {
               type: "codex",
               command: ["node", "bin/agent.mjs"],
@@ -134,6 +137,7 @@ test("execution start coordinator prepares workspace and materializes launch con
               promptRef: "default.md",
             },
             runtime: {
+              dockerArgs: ["--mount", "type=bind,src=/home/codex/.codex,dst=/home/codex/.codex"],
               image: "profile-image",
               setupScript: "test -d repo",
               env: { DEMO: "1" },
@@ -159,6 +163,7 @@ test("execution start coordinator prepares workspace and materializes launch con
             prompt: "Solve the task.",
           },
           environment: {
+            dockerArgs: ["--mount", "type=bind,src=/home/codex/.codex,dst=/home/codex/.codex"],
             image: "profile-image",
             workspaceRoot: "/tmp/github-flows",
             workspacePath: "/tmp/github-flows/ws/octocat/demo/issues/evt-1",
@@ -176,7 +181,7 @@ test("execution start coordinator requires profile runtime image", async () => {
   const coordinator = new Github_Flows_Execution_Start_Coordinator({
     executionLaunchContractFactory: {
       create() {
-        throw new Error("Missing required launch field: launch.runtime.image");
+        throw new Error("Missing required launch field: execution.runtime.image");
       },
     },
     executionPromptMaterializer: {
@@ -205,9 +210,9 @@ test("execution start coordinator requires profile runtime image", async () => {
         promptRefBaseDir: "a",
         type: "docker",
         trigger: {},
-        launch: { handler: { type: "codex", promptRef: "default.md" }, runtime: {} },
+        execution: { handler: { type: "codex", promptRef: "default.md" }, runtime: {} },
       },
     }),
-    /launch\.runtime\.image/,
+    /execution\.runtime\.image/,
   );
 });

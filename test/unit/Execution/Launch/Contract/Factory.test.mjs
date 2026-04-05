@@ -14,7 +14,7 @@ test("launch contract factory creates fully resolved contract from explicit prof
       promptRefBaseDir: "issues",
       trigger: { event: "issues" },
       type: "docker",
-      launch: {
+      execution: {
         handler: {
           type: "codex",
           command: ["node", "bin/agent.mjs"],
@@ -22,6 +22,7 @@ test("launch contract factory creates fully resolved contract from explicit prof
           promptRef: "default.md",
         },
         runtime: {
+          dockerArgs: ["--mount", "type=bind,src=/home/codex/.codex,dst=/home/codex/.codex"],
           image: "codex-agent",
           setupScript: "test -d repo",
           env: { DEMO: "1" },
@@ -51,6 +52,7 @@ test("launch contract factory creates fully resolved contract from explicit prof
       prompt: "Solve the task.",
     },
     environment: {
+      dockerArgs: ["--mount", "type=bind,src=/home/codex/.codex,dst=/home/codex/.codex"],
       image: "codex-agent",
       workspaceRoot: "/tmp/github-flows",
       workspacePath: "/tmp/github-flows/ws/octocat/demo/issues/evt-1",
@@ -72,13 +74,14 @@ test("launch contract factory fails when explicit fields are missing", () => {
       promptRefBaseDir: "issues",
       trigger: { event: "issues" },
       type: "docker",
-      launch: {
+      execution: {
         handler: {
           type: "codex",
           command: ["node"],
           promptRef: "default.md",
         },
         runtime: {
+          dockerArgs: ["--mount"],
           image: "codex-agent",
           setupScript: "test -d repo",
           env: { DEMO: "1" },
@@ -90,5 +93,5 @@ test("launch contract factory fails when explicit fields are missing", () => {
       workspaceRoot: "/tmp/github-flows",
       workspacePath: "/tmp/github-flows/ws/octocat/demo/issues/evt-1",
     },
-  }), /launch\.handler\.args/);
+  }), /execution\.handler\.args/);
 });

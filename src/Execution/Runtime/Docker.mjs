@@ -27,7 +27,7 @@ function validateLaunchContract(contract) {
   }
 
   const typedHandler = /** @type {{ command?: unknown, args?: unknown, prompt?: unknown, type?: unknown }} */ (handler);
-  const typedEnvironment = /** @type {{ env?: unknown, image?: unknown, setupScript?: unknown, timeoutSec?: unknown, workspacePath?: unknown, workspaceRoot?: unknown }} */ (environment);
+  const typedEnvironment = /** @type {{ dockerArgs?: unknown, env?: unknown, image?: unknown, setupScript?: unknown, timeoutSec?: unknown, workspacePath?: unknown, workspaceRoot?: unknown }} */ (environment);
 
   if ((typeof typedEnvironment.image !== "string") || typedEnvironment.image.length === 0) {
     throw new Error("Launch contract environment.image is required.");
@@ -43,6 +43,9 @@ function validateLaunchContract(contract) {
   }
   if ((typedEnvironment.env === null) || (typeof typedEnvironment.env !== "object") || Array.isArray(typedEnvironment.env)) {
     throw new Error("Launch contract environment.env is required.");
+  }
+  if ((typedEnvironment.dockerArgs !== undefined) && (!Array.isArray(typedEnvironment.dockerArgs) || typedEnvironment.dockerArgs.some((item) => typeof item !== "string" || item.length === 0))) {
+    throw new Error("Launch contract environment.dockerArgs must be a string array.");
   }
   if ((typeof typedEnvironment.timeoutSec !== "number") || !Number.isInteger(typedEnvironment.timeoutSec) || typedEnvironment.timeoutSec <= 0) {
     throw new Error("Launch contract environment.timeoutSec must be a positive integer.");
@@ -74,6 +77,7 @@ function validateLaunchContract(contract) {
       type: typedHandler.type,
     },
     environment: {
+      dockerArgs: typedEnvironment.dockerArgs ?? [],
       env: /** @type {Record<string, string>} */ (typedEnvironment.env),
       image: typedEnvironment.image,
       setupScript: typedEnvironment.setupScript,
@@ -108,6 +112,8 @@ function buildDockerArgs(contract) {
     "--mount",
     `type=bind,src=${contract.environment.workspacePath},dst=${CONTAINER_WORKSPACE_PATH}`,
   ];
+
+  args.push(...contract.environment.dockerArgs);
 
   for (const [key, value] of Object.entries(contract.environment.env)) {
     args.push("--env", `${key}=${value}`);

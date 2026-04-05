@@ -85,7 +85,7 @@ function createContext({ body = "{}", path = "/webhooks/github", secret = "share
               event: "issues",
               repository: "octocat/demo",
             },
-            launch: {
+            execution: {
               handler: { type: "codex", command: ["node"], args: [], promptRef: "default.md" },
               runtime: { image: "profile-image", setupScript: "true", env: {}, timeoutSec: 30 },
             },
@@ -180,7 +180,7 @@ test("webhook handler accepts matching webhook requests and logs admission after
         event: "issues",
         repository: "octocat/demo",
       },
-      launch: {
+      execution: {
         handler: { type: "codex", command: ["node"], args: [], promptRef: "default.md" },
         runtime: { image: "profile-image", setupScript: "true", env: {}, timeoutSec: 30 },
       },

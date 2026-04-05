@@ -30,7 +30,7 @@ test("prompt materializer resolves template relative to promptRef source and rep
         promptRefBaseDir: "issues",
         trigger: { event: "issues" },
         type: "docker",
-        launch: {
+        execution: {
           handler: {
             type: "codex",
             command: ["node"],
@@ -82,7 +82,7 @@ test("prompt materializer rejects promptRef that escapes cfg", async () => {
           promptRefBaseDir: "issues",
           trigger: {},
           type: "docker",
-          launch: {
+          execution: {
             handler: {
               type: "codex",
               command: ["node"],

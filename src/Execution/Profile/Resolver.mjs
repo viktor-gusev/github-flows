@@ -53,12 +53,13 @@ function mergeCandidateFragments(fragments) {
       ...result.trigger,
       ...asRecord(fragment.trigger),
     };
-    const launch = deepMerge(result.launch, fragment.launch);
-    const type = typeof fragment.type === "string" ? fragment.type : result.type;
-    const nextHandler = asRecord(asRecord(fragment.launch).handler);
+    const execution = deepMerge(result.execution, fragment.execution);
+    const runtime = asRecord(asRecord(fragment.execution).runtime);
+    const type = typeof runtime.type === "string" ? runtime.type : result.type;
+    const nextHandler = asRecord(asRecord(fragment.execution).handler);
     const promptRefBaseDir = typeof nextHandler.promptRef === "string" ? fragment.directory : result.promptRefBaseDir;
-    return { launch, promptRefBaseDir, trigger, type };
-  }, { trigger: {}, launch: {}, type: undefined, promptRefBaseDir: undefined });
+    return { execution, promptRefBaseDir, trigger, type };
+  }, { trigger: {}, execution: {}, type: undefined, promptRefBaseDir: undefined });
 }
 
 function normalizeRelativePath(pathValue) {
@@ -124,9 +125,8 @@ export default class Github_Flows_Execution_Profile_Resolver {
       const content = await fsPromises.readFile(absolutePath, "utf8");
       const parsed = JSON.parse(content);
       return {
-        launch: asRecord(asRecord(parsed).launch),
+        execution: asRecord(asRecord(parsed).execution),
         directory: pathModule.dirname(pathModule.relative(pathModule.resolve(runtime.workspaceRoot, "cfg"), absolutePath)).split("\\").join("/"),
-        type: typeof asRecord(parsed).type === "string" ? asRecord(parsed).type : undefined,
         trigger: asRecord(asRecord(parsed).trigger),
       };
     };
@@ -261,7 +261,7 @@ export default class Github_Flows_Execution_Profile_Resolver {
         selectedProfile: effective
           ? {
               id: effective.id,
-              launch: effective.profile.launch,
+              execution: effective.profile.execution,
               orderKey: effective.orderKey,
               promptRefBaseDir: effective.profile.promptRefBaseDir,
               type: effective.profile.type,

@@ -85,6 +85,7 @@ test("docker runtime starts container from launch contract", async () => {
           prompt: "Solve the task.",
         },
         environment: {
+          dockerArgs: ["--mount", "type=bind,src=/home/codex/.codex,dst=/home/codex/.codex"],
           image: "codex-agent",
           workspaceRoot,
           workspacePath,
@@ -105,7 +106,7 @@ test("docker runtime starts container from launch contract", async () => {
     assert.equal(calls.length, 1);
     assert.equal(calls[0].command, "docker");
     assert.deepEqual(calls[0].options, { stdio: ["ignore", "pipe", "pipe"] });
-    assert.deepEqual(calls[0].args.slice(0, 9), [
+    assert.deepEqual(calls[0].args.slice(0, 11), [
       "run",
       "--rm",
       "--init",
@@ -113,15 +114,17 @@ test("docker runtime starts container from launch contract", async () => {
       "/workspace",
       "--mount",
       `type=bind,src=${workspacePath},dst=/workspace`,
+      "--mount",
+      "type=bind,src=/home/codex/.codex,dst=/home/codex/.codex",
       "--env",
       "DEMO=1",
     ]);
-    assert.equal(calls[0].args[9], "codex-agent");
-    assert.equal(calls[0].args[10], "bash");
-    assert.equal(calls[0].args[11], "-lc");
-    assert.match(calls[0].args[12], /cd '\/workspace'/);
-    assert.match(calls[0].args[12], /test -d repo/);
-    assert.match(calls[0].args[12], /printf %s 'Solve the task\.'/);
+    assert.equal(calls[0].args[11], "codex-agent");
+    assert.equal(calls[0].args[12], "bash");
+    assert.equal(calls[0].args[13], "-lc");
+    assert.match(calls[0].args[14], /cd '\/workspace'/);
+    assert.match(calls[0].args[14], /test -d repo/);
+    assert.match(calls[0].args[14], /printf %s 'Solve the task\.'/);
     assert.equal(logs[0].action, "docker-run-start");
     assert.equal(logs[1].action, "docker-run-complete");
     assert.equal(await fs.readFile(path.join(workspaceRoot, "log", "run", "octocat", "demo", "issues", "evt-1", "stdout.log"), "utf8"), "ok");
@@ -182,7 +185,7 @@ test("docker runtime reports timeout outcome", async () => {
       launchContract: {
         type: "docker",
         handler: { command: ["echo"], args: ["hi"], prompt: "", type: "codex" },
-        environment: { image: "codex-agent", workspaceRoot, workspacePath, setupScript: "", env: {}, timeoutSec: 1 },
+        environment: { dockerArgs: [], image: "codex-agent", workspaceRoot, workspacePath, setupScript: "", env: {}, timeoutSec: 1 },
       },
     });
 

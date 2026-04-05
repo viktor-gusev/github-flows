@@ -22,6 +22,16 @@ function requireStringArray(value, field) {
   return value;
 }
 
+function optionalStringArray(value, field) {
+  if (value === undefined) {
+    return [];
+  }
+  if (!Array.isArray(value) || value.some((item) => (typeof item !== "string") || item.length === 0)) {
+    throw new Error(`Missing required launch field: ${field}`);
+  }
+  return value;
+}
+
 function requirePositiveInteger(value, field) {
   if (!Number.isInteger(value) || value <= 0) {
     throw new Error(`Missing required launch field: ${field}`);
@@ -59,25 +69,26 @@ export default class Github_Flows_Execution_Launch_Contract_Factory {
      * @returns {Github_Flows_Execution_Launch_Contract}
      */
     this.create = function ({ prompt, selectedProfile, workspace }) {
-      const launch = asRecord(selectedProfile.launch);
-      const handler = asRecord(launch.handler);
-      const runtime = asRecord(launch.runtime);
+      const execution = asRecord(selectedProfile.execution);
+      const handler = asRecord(execution.handler);
+      const runtime = asRecord(execution.runtime);
 
       const contract = {
         type: requireString(selectedProfile.type, "profile.type"),
         handler: {
-          type: requireString(handler.type, "launch.handler.type"),
-          command: requireStringArray(handler.command, "launch.handler.command"),
-          args: requireStringArray(handler.args, "launch.handler.args"),
+          type: requireString(handler.type, "execution.handler.type"),
+          command: requireStringArray(handler.command, "execution.handler.command"),
+          args: requireStringArray(handler.args, "execution.handler.args"),
           prompt: requireString(prompt, "prepared.prompt"),
         },
         environment: {
-          image: requireString(runtime.image, "launch.runtime.image"),
+          dockerArgs: optionalStringArray(runtime.dockerArgs, "execution.runtime.dockerArgs"),
+          image: requireString(runtime.image, "execution.runtime.image"),
           workspaceRoot: requireString(workspace.workspaceRoot, "workspace.workspaceRoot"),
           workspacePath: requireString(workspace.workspacePath, "workspace.workspacePath"),
-          setupScript: requireString(runtime.setupScript, "launch.runtime.setupScript"),
-          env: requireStringRecord(runtime.env, "launch.runtime.env"),
-          timeoutSec: requirePositiveInteger(runtime.timeoutSec, "launch.runtime.timeoutSec"),
+          setupScript: requireString(runtime.setupScript, "execution.runtime.setupScript"),
+          env: requireStringRecord(runtime.env, "execution.runtime.env"),
+          timeoutSec: requirePositiveInteger(runtime.timeoutSec, "execution.runtime.timeoutSec"),
         },
       };
 

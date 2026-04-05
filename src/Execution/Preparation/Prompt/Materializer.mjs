@@ -64,9 +64,9 @@ export default class Github_Flows_Execution_Preparation_Prompt_Materializer {
      * @returns {Promise<string>}
      */
     this.materialize = async function ({ event, selectedProfile, workspace }) {
-      const launch = asRecord(selectedProfile.launch);
-      const handler = asRecord(launch.handler);
-      const promptRef = requireString(handler.promptRef, "launch.handler.promptRef");
+      const execution = asRecord(selectedProfile.execution);
+      const handler = asRecord(execution.handler);
+      const promptRef = requireString(handler.promptRef, "execution.handler.promptRef");
       const promptRefBaseDir = requireString(selectedProfile.promptRefBaseDir, "profile.promptRefBaseDir");
       const cfgRoot = pathModule.resolve(runtime.workspaceRoot, "cfg");
       const templatePath = pathModule.resolve(cfgRoot, promptRefBaseDir, promptRef);

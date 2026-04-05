@@ -42,7 +42,7 @@ declare global {
   type Github_Flows_Config_Runtime = import("./src/Config/Runtime.mjs").Data;
   type Github_Flows_Config_Runtime__Wrapper = import("./src/Config/Runtime.mjs").default;
   type Github_Flows_Config_Runtime__Factory = import("./src/Config/Runtime.mjs").Factory;
-  type Github_Flows_Execution_Profile__Launch = {
+  type Github_Flows_Execution_Profile__Execution = {
     handler: {
       type: string,
       command: string[],
@@ -50,6 +50,7 @@ declare global {
       promptRef?: string,
     },
     runtime: {
+      dockerArgs?: string[],
       image: string,
       setupScript: string,
       env: Record<string, string>,
@@ -58,7 +59,7 @@ declare global {
   };
   type Github_Flows_Execution_Profile__Selected = {
     id: string,
-    launch: Github_Flows_Execution_Profile__Launch,
+    execution: Github_Flows_Execution_Profile__Execution,
     orderKey: string,
     promptRefBaseDir: string | undefined,
     trigger: Record<string, unknown>,
@@ -72,6 +73,7 @@ declare global {
     prompt: string,
   };
   type Github_Flows_Execution_Launch_Contract__Environment = {
+    dockerArgs: string[],
     image: string,
     workspaceRoot: string,
     workspacePath: string,
