@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import fsSync from "node:fs";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
@@ -7,17 +8,65 @@ import test from "node:test";
 import Github_Flows_Execution_Runtime_Docker from "../../../../src/Execution/Runtime/Docker.mjs";
 
 test("docker runtime starts container from launch contract", async () => {
-  const workspacePath = await fs.mkdtemp(path.join(os.tmpdir(), "github-flows-runtime-"));
+  const workspaceRoot = await fs.mkdtemp(path.join(os.tmpdir(), "github-flows-runtime-"));
+  const workspacePath = path.join(workspaceRoot, "ws", "octocat", "demo", "issues", "evt-1");
+  await fs.mkdir(workspacePath, { recursive: true });
   const calls = [];
   const logs = [];
+  const observedStdout = [];
+  const observedStderr = [];
+  const originalStdoutWrite = process.stdout.write.bind(process.stdout);
+  const originalStderrWrite = process.stderr.write.bind(process.stderr);
+  process.stdout.write = /** @type {typeof process.stdout.write} */ ((chunk, encoding, callback) => {
+    observedStdout.push(Buffer.isBuffer(chunk) ? chunk.toString("utf8") : String(chunk));
+    if (typeof encoding === "function") encoding();
+    if (typeof callback === "function") callback();
+    return true;
+  });
+  process.stderr.write = /** @type {typeof process.stderr.write} */ ((chunk, encoding, callback) => {
+    observedStderr.push(Buffer.isBuffer(chunk) ? chunk.toString("utf8") : String(chunk));
+    if (typeof encoding === "function") encoding();
+    if (typeof callback === "function") callback();
+    return true;
+  });
   const runtime = new Github_Flows_Execution_Runtime_Docker({
     childProcess: {
-      execFile(command, args, options, callback) {
+      spawn(command, args, options) {
         calls.push({ command, args, options });
-        callback(null, "ok", "");
+        const stdoutListeners = [];
+        const stderrListeners = [];
+        const closeListeners = [];
+        const processMock = {
+          killed: false,
+          stdout: {
+            on(event, listener) {
+              if (event === "data") stdoutListeners.push(listener);
+            },
+          },
+          stderr: {
+            on(event, listener) {
+              if (event === "data") stderrListeners.push(listener);
+            },
+          },
+          on(event, listener) {
+            if (event === "close") closeListeners.push(listener);
+          },
+          kill() {
+            processMock.killed = true;
+            return true;
+          },
+        };
+        queueMicrotask(() => {
+          stdoutListeners.forEach((listener) => listener(Buffer.from("ok")));
+          stderrListeners.forEach((listener) => listener(Buffer.from("warn")));
+          closeListeners.forEach((listener) => listener(0, null));
+        });
+        return processMock;
       },
     },
+    fsModule: fsSync,
     fsPromises: fs,
+    pathModule: path,
     logger: {
       logComponentAction(entry) {
         logs.push(entry);
@@ -36,6 +85,7 @@ test("docker runtime starts container from launch contract", async () => {
         },
         environment: {
           image: "codex-agent",
+          workspaceRoot,
           workspacePath,
           setupScript: "test -d repo",
           env: { DEMO: "1" },
@@ -48,12 +98,12 @@ test("docker runtime starts container from launch contract", async () => {
       attempted: true,
       completed: true,
       exit: "success",
-      stderr: "",
+      stderr: "warn",
       stdout: "ok",
     });
     assert.equal(calls.length, 1);
     assert.equal(calls[0].command, "docker");
-    assert.deepEqual(calls[0].options, { timeout: 1800000, killSignal: "SIGKILL" });
+    assert.deepEqual(calls[0].options, { stdio: ["ignore", "pipe", "pipe"] });
     assert.deepEqual(calls[0].args.slice(0, 9), [
       "run",
       "--rm",
@@ -73,32 +123,64 @@ test("docker runtime starts container from launch contract", async () => {
     assert.match(calls[0].args[12], /printf %s 'Solve the task\.'/);
     assert.equal(logs[0].action, "docker-run-start");
     assert.equal(logs[1].action, "docker-run-complete");
+    assert.equal(await fs.readFile(path.join(workspaceRoot, "log", "run", "octocat", "demo", "issues", "evt-1", "stdout.log"), "utf8"), "ok");
+    assert.equal(await fs.readFile(path.join(workspaceRoot, "log", "run", "octocat", "demo", "issues", "evt-1", "stderr.log"), "utf8"), "warn");
+    assert.deepEqual(observedStdout, ["ok"]);
+    assert.deepEqual(observedStderr, ["warn"]);
   } finally {
-    await fs.rm(workspacePath, { recursive: true, force: true });
+    process.stdout.write = originalStdoutWrite;
+    process.stderr.write = originalStderrWrite;
+    await fs.rm(workspaceRoot, { recursive: true, force: true });
   }
 });
 
 test("docker runtime reports timeout outcome", async () => {
-  const workspacePath = await fs.mkdtemp(path.join(os.tmpdir(), "github-flows-runtime-"));
+  const workspaceRoot = await fs.mkdtemp(path.join(os.tmpdir(), "github-flows-runtime-"));
+  const workspacePath = path.join(workspaceRoot, "ws", "octocat", "demo", "issues", "evt-2");
+  await fs.mkdir(workspacePath, { recursive: true });
   const runtime = new Github_Flows_Execution_Runtime_Docker({
     childProcess: {
-      execFile(_command, _args, _options, callback) {
-        const error = new Error("timed out");
-        // @ts-ignore
-        error.code = "ETIMEDOUT";
-        // @ts-ignore
-        error.killed = true;
-        callback(error, "", "timeout");
+      spawn() {
+        const stdoutListeners = [];
+        const stderrListeners = [];
+        const closeListeners = [];
+        const processMock = {
+          killed: false,
+          stdout: {
+            on(event, listener) {
+              if (event === "data") stdoutListeners.push(listener);
+            },
+          },
+          stderr: {
+            on(event, listener) {
+              if (event === "data") stderrListeners.push(listener);
+            },
+          },
+          on(event, listener) {
+            if (event === "close") closeListeners.push(listener);
+          },
+          kill() {
+            processMock.killed = true;
+            queueMicrotask(() => {
+              stderrListeners.forEach((listener) => listener(Buffer.from("timeout")));
+              closeListeners.forEach((listener) => listener(null, "SIGKILL"));
+            });
+            return true;
+          },
+        };
+        return processMock;
       },
     },
+    fsModule: fsSync,
     fsPromises: fs,
+    pathModule: path,
   });
 
   try {
     const result = await runtime.run({
       launchContract: {
         agent: { command: ["echo"], args: ["hi"], prompt: "", type: "codex" },
-        environment: { image: "codex-agent", workspacePath, setupScript: "", env: {}, timeoutSec: 5 },
+        environment: { image: "codex-agent", workspaceRoot, workspacePath, setupScript: "", env: {}, timeoutSec: 1 },
       },
     });
 
@@ -109,7 +191,8 @@ test("docker runtime reports timeout outcome", async () => {
       stderr: "timeout",
       stdout: "",
     });
+    assert.equal(await fs.readFile(path.join(workspaceRoot, "log", "run", "octocat", "demo", "issues", "evt-2", "stderr.log"), "utf8"), "timeout");
   } finally {
-    await fs.rm(workspacePath, { recursive: true, force: true });
+    await fs.rm(workspaceRoot, { recursive: true, force: true });
   }
 });

@@ -121,6 +121,7 @@ export default class Github_Flows_Execution_Workspace_Preparer {
      *   repo: string,
      *   repoPath: string,
      *   repositoryCachePath: string,
+     *   workspaceRoot: string,
      *   workspacePath: string
      * }>}
      */
@@ -187,6 +188,7 @@ export default class Github_Flows_Execution_Workspace_Preparer {
         repo: identity.repo,
         repoPath,
         repositoryCachePath: cacheEntry.path,
+        workspaceRoot: runtime.workspaceRoot,
         workspacePath,
       };
     };

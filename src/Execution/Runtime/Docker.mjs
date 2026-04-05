@@ -2,6 +2,8 @@
  * Runs one resolved launch contract inside an isolated Docker container.
  */
 const CONTAINER_WORKSPACE_PATH = "/workspace";
+const EXECUTION_WORKSPACE_BRANCH = "ws";
+const EXECUTION_LOG_BRANCH = "log/run";
 
 function quoteShell(value) {
   return `'${String(value).replaceAll("'", "'\"'\"'")}'`;
@@ -22,10 +24,13 @@ function validateLaunchContract(contract) {
   }
 
   const typedAgent = /** @type {{ command?: unknown, args?: unknown, prompt?: unknown, type?: unknown }} */ (agent);
-  const typedEnvironment = /** @type {{ env?: unknown, image?: unknown, setupScript?: unknown, timeoutSec?: unknown, workspacePath?: unknown }} */ (environment);
+  const typedEnvironment = /** @type {{ env?: unknown, image?: unknown, setupScript?: unknown, timeoutSec?: unknown, workspacePath?: unknown, workspaceRoot?: unknown }} */ (environment);
 
   if ((typeof typedEnvironment.image !== "string") || typedEnvironment.image.length === 0) {
     throw new Error("Launch contract environment.image is required.");
+  }
+  if ((typeof typedEnvironment.workspaceRoot !== "string") || typedEnvironment.workspaceRoot.length === 0) {
+    throw new Error("Launch contract environment.workspaceRoot is required.");
   }
   if ((typeof typedEnvironment.workspacePath !== "string") || typedEnvironment.workspacePath.length === 0) {
     throw new Error("Launch contract environment.workspacePath is required.");
@@ -64,6 +69,7 @@ function validateLaunchContract(contract) {
       image: typedEnvironment.image,
       setupScript: typedEnvironment.setupScript ?? "",
       timeoutSec: typedEnvironment.timeoutSec,
+      workspaceRoot: typedEnvironment.workspaceRoot,
       workspacePath: typedEnvironment.workspacePath,
     },
   };
@@ -108,14 +114,117 @@ function buildDockerArgs(contract) {
   return args;
 }
 
-async function runDocker(execFile, args, timeoutMs) {
+function resolveLogPaths(pathModule, contract) {
+  const workspaceRoot = pathModule.resolve(contract.environment.workspaceRoot);
+  const workspacePath = pathModule.resolve(contract.environment.workspacePath);
+  const executionRoot = pathModule.resolve(workspaceRoot, EXECUTION_WORKSPACE_BRANCH);
+  const relativeWorkspacePath = pathModule.relative(executionRoot, workspacePath);
+
+  if (
+    relativeWorkspacePath.length === 0
+    || relativeWorkspacePath.startsWith("..")
+    || pathModule.isAbsolute(relativeWorkspacePath)
+  ) {
+    throw new Error("Launch contract environment.workspacePath must be located under workspaceRoot/ws.");
+  }
+
+  const logDirectory = pathModule.resolve(workspaceRoot, EXECUTION_LOG_BRANCH, relativeWorkspacePath);
+  return {
+    logDirectory,
+    stderrPath: pathModule.join(logDirectory, "stderr.log"),
+    stdoutPath: pathModule.join(logDirectory, "stdout.log"),
+  };
+}
+
+async function closeStream(stream) {
+  await new Promise((resolve, reject) => {
+    stream.on("error", reject);
+    stream.end(() => resolve(undefined));
+  });
+}
+
+async function runDocker({ childProcess, contract, fsModule, fsPromises, pathModule }) {
+  const dockerArgs = buildDockerArgs(contract);
+  const logs = resolveLogPaths(pathModule, contract);
+  await fsPromises.mkdir(logs.logDirectory, { recursive: true });
+
   return await new Promise((resolve, reject) => {
-    execFile("docker", args, { timeout: timeoutMs, killSignal: "SIGKILL" }, (error, stdout = "", stderr = "") => {
-      if (error) {
-        reject(Object.assign(error, { stderr, stdout }));
-      } else {
-        resolve({ stderr, stdout });
+    const stdoutChunks = [];
+    const stderrChunks = [];
+    const stdoutStream = fsModule.createWriteStream(logs.stdoutPath, { flags: "w" });
+    const stderrStream = fsModule.createWriteStream(logs.stderrPath, { flags: "w" });
+    let settled = false;
+    let timeoutId;
+    let killedByTimeout = false;
+
+    const settleReject = (error) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timeoutId);
+      reject(error);
+    };
+
+    const settleResolve = (value) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timeoutId);
+      resolve(value);
+    };
+
+    const child = childProcess.spawn("docker", dockerArgs, {
+      stdio: ["ignore", "pipe", "pipe"],
+    });
+
+    const onStreamError = (error) => {
+      if (!child.killed) child.kill("SIGKILL");
+      settleReject(error);
+    };
+
+    stdoutStream.on("error", onStreamError);
+    stderrStream.on("error", onStreamError);
+    child.on("error", settleReject);
+
+    timeoutId = setTimeout(() => {
+      killedByTimeout = true;
+      child.kill("SIGKILL");
+    }, contract.environment.timeoutSec * 1000);
+
+    child.stdout.on("data", (chunk) => {
+      const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
+      stdoutChunks.push(buffer);
+      stdoutStream.write(buffer);
+      process.stdout.write(buffer);
+    });
+    child.stderr.on("data", (chunk) => {
+      const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
+      stderrChunks.push(buffer);
+      stderrStream.write(buffer);
+      process.stderr.write(buffer);
+    });
+
+    child.on("close", async (code, signal) => {
+      try {
+        await Promise.all([closeStream(stdoutStream), closeStream(stderrStream)]);
+      } catch (error) {
+        settleReject(error);
+        return;
       }
+
+      const stdout = Buffer.concat(stdoutChunks).toString("utf8");
+      const stderr = Buffer.concat(stderrChunks).toString("utf8");
+      if (killedByTimeout || signal === "SIGKILL") {
+        const error = new Error("timed out");
+        Object.assign(error, { code: "ETIMEDOUT", killed: true, signal, stderr, stdout });
+        settleReject(error);
+        return;
+      }
+      if (code !== 0) {
+        const error = new Error(`docker exited with code ${code}`);
+        Object.assign(error, { code, killed: false, signal, stderr, stdout });
+        settleReject(error);
+        return;
+      }
+      settleResolve({ stderr, stdout });
     });
   });
 }
@@ -123,8 +232,10 @@ async function runDocker(execFile, args, timeoutMs) {
 export default class Github_Flows_Execution_Runtime_Docker {
   /**
    * @param {object} deps
-   * @param {typeof import("node:child_process")} deps.childProcess
+   * @param {{ spawn: typeof import("node:child_process").spawn }} deps.childProcess
+   * @param {typeof import("node:fs")} deps.fsModule
    * @param {typeof import("node:fs/promises")} deps.fsPromises
+   * @param {typeof import("node:path")} deps.pathModule
    * @param {{ logComponentAction?: (entry: {
    *   action: string,
    *   component: string,
@@ -132,7 +243,7 @@ export default class Github_Flows_Execution_Runtime_Docker {
    *   message: string
    * }) => void }} [deps.logger]
    */
-  constructor({ childProcess, fsPromises, logger }) {
+  constructor({ childProcess, fsModule, fsPromises, logger, pathModule }) {
     /**
      * @param {{ launchContract: Github_Flows_Execution_Launch_Contract }} params
      * @returns {Promise<{
@@ -145,26 +256,28 @@ export default class Github_Flows_Execution_Runtime_Docker {
      */
     this.run = async function ({ launchContract }) {
       const contract = validateLaunchContract(launchContract);
+      await fsPromises.stat(contract.environment.workspaceRoot);
       await fsPromises.stat(contract.environment.workspacePath);
-      const dockerArgs = buildDockerArgs(contract);
       logger?.logComponentAction?.({
         component: "Github_Flows_Execution_Runtime_Docker",
         action: "docker-run-start",
         details: {
           image: contract.environment.image,
           timeoutSec: contract.environment.timeoutSec,
+          workspaceRoot: contract.environment.workspaceRoot,
           workspacePath: contract.environment.workspacePath,
         },
         message: `Starting containerized execution for ${contract.agent.type}.`,
       });
 
       try {
-        const result = await runDocker(childProcess.execFile.bind(childProcess), dockerArgs, contract.environment.timeoutSec * 1000);
+        const result = await runDocker({ childProcess, contract, fsModule, fsPromises, pathModule });
         logger?.logComponentAction?.({
           component: "Github_Flows_Execution_Runtime_Docker",
           action: "docker-run-complete",
           details: {
             image: contract.environment.image,
+            workspaceRoot: contract.environment.workspaceRoot,
             workspacePath: contract.environment.workspacePath,
           },
           message: `Completed containerized execution for ${contract.agent.type}.`,
@@ -186,6 +299,7 @@ export default class Github_Flows_Execution_Runtime_Docker {
           action: exit === "timeout" ? "docker-run-timeout" : "docker-run-failed",
           details: {
             image: contract.environment.image,
+            workspaceRoot: contract.environment.workspaceRoot,
             workspacePath: contract.environment.workspacePath,
           },
           message: exit === "timeout"
@@ -207,7 +321,9 @@ export default class Github_Flows_Execution_Runtime_Docker {
 export const __deps__ = Object.freeze({
   default: Object.freeze({
     childProcess: "node:child_process",
+    fsModule: "node:fs",
     fsPromises: "node:fs/promises",
     logger: "Github_Flows_Logger$",
+    pathModule: "node:path",
   }),
 });

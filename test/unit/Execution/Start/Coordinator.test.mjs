@@ -15,7 +15,10 @@ test("execution start coordinator prepares workspace and materializes launch con
     executionWorkspacePreparer: {
       async prepareByGithubEvent(entry) {
         calls.push({ method: "prepareByGithubEvent", entry });
-        return { workspacePath: "/tmp/ws/octocat/demo/issues/evt-1" };
+        return {
+          workspaceRoot: "/tmp/github-flows",
+          workspacePath: "/tmp/github-flows/ws/octocat/demo/issues/evt-1",
+        };
       },
     },
   });
@@ -64,7 +67,8 @@ test("execution start coordinator prepares workspace and materializes launch con
           },
           environment: {
             image: "profile-image",
-            workspacePath: "/tmp/ws/octocat/demo/issues/evt-1",
+            workspaceRoot: "/tmp/github-flows",
+            workspacePath: "/tmp/github-flows/ws/octocat/demo/issues/evt-1",
             setupScript: "test -d repo",
             env: { DEMO: "1" },
             timeoutSec: 99,
@@ -84,7 +88,7 @@ test("execution start coordinator requires profile runtime image", async () => {
     },
     executionWorkspacePreparer: {
       async prepareByGithubEvent() {
-        return { workspacePath: "/tmp/ws" };
+        return { workspaceRoot: "/tmp/github-flows", workspacePath: "/tmp/github-flows/ws" };
       },
     },
   });

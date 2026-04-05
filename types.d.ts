@@ -53,6 +53,7 @@ declare global {
     },
     environment: {
       image: string,
+      workspaceRoot: string,
       workspacePath: string,
       setupScript: string,
       env: Record<string, string>,
@@ -70,16 +71,11 @@ declare global {
   type Github_Flows_Execution_Workspace_Preparer = import("./src/Execution/Workspace/Preparer.mjs").default;
   type Github_Flows_Logger = import("./src/Logger.mjs").default;
   type Github_Flows_Repo_Cache_Manager = import("./src/Repo/Cache/Manager.mjs").default;
-  type Node_ChildProcess = typeof import("node:child_process");
-  type Node_Fs_Promises = typeof import("node:fs/promises");
   type Github_Flows_Web_Handler_Webhook = import("./src/Web/Handler/Webhook.mjs").default;
   type Github_Flows_Web_Handler_Webhook_EventLog = import("./src/Web/Handler/Webhook/EventLog.mjs").default;
   type Github_Flows_Web_Handler_Webhook_Signature = import("./src/Web/Handler/Webhook/Signature.mjs").default;
   type Github_Flows_Web_Server = import("./src/Web/Server.mjs").default;
   type Github_Flows_Web_Handler_Webhook__Info = import("@flancer32/teq-web/src/Back/Dto/Info.mjs").default;
-  type Node_Http = typeof import("node:http");
-  type Node_Http__Server = import("node:http").Server;
-  type Node_Path = typeof import("node:path");
 }
 
 export {};

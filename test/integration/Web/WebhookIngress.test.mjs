@@ -243,6 +243,14 @@ test("webhook ingress is served on the static GitHub webhook path", { timeout: 5
     await assert.doesNotReject(
       fs.stat(path.resolve(workspaceRoot, "ws", "octocat", "demo", "opened", "evt-1", "repo", ".git")),
     );
+    assert.equal(
+      await fs.readFile(path.resolve(workspaceRoot, "log", "run", "octocat", "demo", "opened", "evt-1", "stdout.log"), "utf8"),
+      "",
+    );
+    assert.equal(
+      await fs.readFile(path.resolve(workspaceRoot, "log", "run", "octocat", "demo", "opened", "evt-1", "stderr.log"), "utf8"),
+      "",
+    );
   } finally {
     process.env.PATH = originalPath;
     await server.stop();

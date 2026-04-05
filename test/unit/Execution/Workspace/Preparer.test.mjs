@@ -52,6 +52,7 @@ test("workspace preparer creates execution workspace and clones repository from 
       },
     });
 
+    assert.equal(result.workspaceRoot, workspaceRoot);
     assert.equal(result.workspacePath, path.resolve(workspaceRoot, "ws", "octocat", "demo", "pull_request_opened", "evt-42"));
     assert.equal(result.repoPath, path.resolve(result.workspacePath, "repo"));
     assert.equal(result.repositoryCachePath, cachePath);
@@ -134,6 +135,7 @@ test("workspace preparer generates fallback event id when payload has no stable 
 
     assert.equal(result.eventType, "issues_labeled");
     assert.equal(result.eventId, "260404-101112-0007");
+    assert.equal(result.workspaceRoot, workspaceRoot);
     assert.equal(result.workspacePath, path.resolve(workspaceRoot, "ws", "octocat", "demo", "issues_labeled", "260404-101112-0007"));
   } finally {
     await fs.rm(workspaceRoot, { recursive: true, force: true });

@@ -48,6 +48,7 @@ export default class Github_Flows_Execution_Start_Coordinator {
         },
         environment: {
           image: requireString(runtime.image, "launch.runtime.image"),
+          workspaceRoot: workspace.workspaceRoot,
           workspacePath: workspace.workspacePath,
           setupScript: typeof runtime.setupScript === "string" ? runtime.setupScript : "test -d repo",
           env: /** @type {Record<string, string>} */ (Object.fromEntries(
@@ -93,6 +94,7 @@ export default class Github_Flows_Execution_Start_Coordinator {
         details: {
           image: launchContract.environment.image,
           profileId: selectedProfile.id,
+          workspaceRoot: launchContract.environment.workspaceRoot,
           workspacePath: launchContract.environment.workspacePath,
         },
         message: `Materialized launch contract for profile ${selectedProfile.id}.`,
