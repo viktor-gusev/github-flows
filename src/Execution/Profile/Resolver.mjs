@@ -73,13 +73,12 @@ function dirnameOf(relativePath) {
   return lastSlash === -1 ? "." : normalized.slice(0, lastSlash);
 }
 
-function hasDescendantProfile(fragmentDirectories, candidateDir) {
-  const prefix = candidateDir === "." ? "" : `${candidateDir}/`;
-  return fragmentDirectories.some((dir) => dir !== candidateDir && dir.startsWith(prefix));
-}
-
 function toCandidateId(relativeDir) {
   return normalizeRelativePath(relativeDir === "." ? PROFILE_FILENAME : `${relativeDir}/${PROFILE_FILENAME}`);
+}
+
+function toCandidateDirectoryPath(pathModule, cfgRoot, relativeDir) {
+  return normalizeRelativePath(pathModule.resolve(cfgRoot, relativeDir === "." ? "" : relativeDir));
 }
 
 function buildEventAttributes({ headers, payload }) {
@@ -121,18 +120,22 @@ export default class Github_Flows_Execution_Profile_Resolver {
    * @param {Github_Flows_Config_Runtime} deps.runtime
    */
   constructor({ fsPromises, logger, pathModule, runtime }) {
+    const resolveCfgRoot = function () {
+      return pathModule.resolve(runtime.workspaceRoot, "cfg");
+    };
+
     const readFragment = async function (absolutePath) {
       const content = await fsPromises.readFile(absolutePath, "utf8");
       const parsed = JSON.parse(content);
       return {
         execution: asRecord(asRecord(parsed).execution),
-        directory: pathModule.dirname(pathModule.relative(pathModule.resolve(runtime.workspaceRoot, "cfg"), absolutePath)).split("\\").join("/"),
+        directory: pathModule.dirname(pathModule.relative(resolveCfgRoot(), absolutePath)).split("\\").join("/"),
         trigger: asRecord(asRecord(parsed).trigger),
       };
     };
 
     const scanFragments = async function () {
-      const root = pathModule.resolve(runtime.workspaceRoot, "cfg");
+      const root = resolveCfgRoot();
       const discovered = new Map();
 
       const walk = async function (directory, relativeDir = ".") {
@@ -164,14 +167,13 @@ export default class Github_Flows_Execution_Profile_Resolver {
     };
 
     const buildCandidates = async function () {
-      const { fragments } = await scanFragments();
+      const { fragments, root } = await scanFragments();
       const fragmentDirectories = Array.from(fragments.keys()).sort();
-      const leafDirectories = fragmentDirectories.filter((dir) => !hasDescendantProfile(fragmentDirectories, dir));
       const candidates = [];
 
-      for (const leafDirectory of leafDirectories) {
+      for (const candidateDirectory of fragmentDirectories) {
         const chain = [];
-        let cursor = leafDirectory;
+        let cursor = candidateDirectory;
         while (cursor !== ".") {
           const fragment = fragments.get(cursor);
           if (fragment) chain.unshift(fragment);
@@ -188,14 +190,37 @@ export default class Github_Flows_Execution_Profile_Resolver {
           });
         }
         candidates.push({
-          id: toCandidateId(leafDirectory),
-          orderKey: toCandidateId(leafDirectory),
+          filesystemPath: toCandidateDirectoryPath(pathModule, root, candidateDirectory),
+          id: toCandidateId(candidateDirectory),
+          orderKey: toCandidateId(candidateDirectory),
           fragments: loaded.map((item) => item.directory),
           profile: mergeCandidateFragments(loaded.map((item) => item.fragment)),
         });
       }
 
       candidates.sort((left, right) => left.orderKey.localeCompare(right.orderKey));
+      logger?.logComponentAction?.({
+        component: "Github_Flows_Execution_Profile_Resolver",
+        action: "build-candidate-profile-registry",
+        details: {
+          cfgRoot: root,
+          constructedCandidates: candidates.map((candidate) => ({
+            filesystemPath: candidate.filesystemPath,
+            fragments: candidate.fragments,
+            id: candidate.id,
+            orderKey: candidate.orderKey,
+          })),
+          discoveredProfileFiles: fragmentDirectories.map((directory) => {
+            const fragment = fragments.get(directory);
+            return {
+              directory,
+              path: fragment?.absolutePath,
+            };
+          }),
+          workspaceRoot: runtime.workspaceRoot,
+        },
+        message: `Built candidate profile registry from ${root}.`,
+      });
       return candidates;
     };
 

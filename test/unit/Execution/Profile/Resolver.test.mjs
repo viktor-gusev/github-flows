@@ -49,7 +49,11 @@ test("profile resolver merges fragment chain from root to leaf candidate", async
       },
     });
 
-    assert.equal(result.candidates.length, 1);
+    assert.equal(result.candidates.length, 2);
+    assert.deepEqual(result.candidates.map((item) => item.id), [
+      "a/b/profile.json",
+      "a/profile.json",
+    ]);
     assert.equal(result.selectedProfile?.id, "a/b/profile.json");
     assert.deepEqual(result.applicabilityBasis, {
       event: "issues",
@@ -76,7 +80,81 @@ test("profile resolver merges fragment chain from root to leaf candidate", async
     });
     assert.equal(result.selectedProfile?.type, "docker");
     assert.equal(result.selectedProfile?.promptRefBaseDir, "a/b");
-    assert.equal(logs[0].action, "resolve-effective-profile");
+    assert.equal(logs[0].action, "build-candidate-profile-registry");
+    assert.equal(logs[1].action, "resolve-effective-profile");
+  } finally {
+    await fs.rm(workspaceRoot, { recursive: true, force: true });
+  }
+});
+
+test("profile resolver builds candidates for every discovered profile path and logs the registry inputs", async () => {
+  const workspaceRoot = await fs.mkdtemp(path.join(os.tmpdir(), "github-flows-profile-"));
+  const logs = [];
+  const resolver = new Github_Flows_Execution_Profile_Resolver({
+    fsPromises: fs,
+    logger: { logComponentAction(entry) { logs.push(entry); } },
+    pathModule: path,
+    runtime: { workspaceRoot },
+  });
+
+  try {
+    await writeProfile(workspaceRoot, ".", {
+      trigger: { event: "issues" },
+      execution: { runtime: { type: "docker", image: "root-image" } },
+    });
+    await writeProfile(workspaceRoot, "site", {
+      trigger: { repository: "octocat/demo" },
+      execution: { runtime: { env: { SITE: "1" } } },
+    });
+    await writeProfile(workspaceRoot, path.join("site", "group"), {
+      trigger: { action: "opened" },
+      execution: { runtime: { env: { GROUP: "1" } } },
+    });
+
+    const result = await resolver.resolveByGithubEvent({
+      headers: { "x-github-event": "issues" },
+      payload: {
+        action: "opened",
+        repository: { name: "demo", owner: { login: "octocat" } },
+      },
+    });
+
+    assert.deepEqual(result.candidates.map((item) => item.id), [
+      "profile.json",
+      "site/group/profile.json",
+      "site/profile.json",
+    ]);
+
+    const registryLog = logs.find((entry) => entry.action === "build-candidate-profile-registry");
+    assert.deepEqual(registryLog?.details, {
+      workspaceRoot,
+      cfgRoot: path.resolve(workspaceRoot, "cfg"),
+      discoveredProfileFiles: [
+        { directory: ".", path: path.resolve(workspaceRoot, "cfg", "profile.json") },
+        { directory: "site", path: path.resolve(workspaceRoot, "cfg", "site", "profile.json") },
+        { directory: "site/group", path: path.resolve(workspaceRoot, "cfg", "site", "group", "profile.json") },
+      ],
+      constructedCandidates: [
+        {
+          filesystemPath: path.resolve(workspaceRoot, "cfg"),
+          fragments: ["."],
+          id: "profile.json",
+          orderKey: "profile.json",
+        },
+        {
+          filesystemPath: path.resolve(workspaceRoot, "cfg", "site", "group"),
+          fragments: [".", "site", "site/group"],
+          id: "site/group/profile.json",
+          orderKey: "site/group/profile.json",
+        },
+        {
+          filesystemPath: path.resolve(workspaceRoot, "cfg", "site"),
+          fragments: [".", "site"],
+          id: "site/profile.json",
+          orderKey: "site/profile.json",
+        },
+      ],
+    });
   } finally {
     await fs.rm(workspaceRoot, { recursive: true, force: true });
   }
