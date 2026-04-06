@@ -44,26 +44,38 @@ function materializePlaceholders(template, context) {
 export default class Github_Flows_Execution_Preparation_Prompt_Materializer {
   /**
    * @param {object} deps
+   * @param {Github_Flows_Web_Handler_Webhook_EventLog} deps.eventLog
    * @param {typeof import("node:fs/promises")} deps.fsPromises
-   * @param {{ logComponentAction?: (entry: {
-   *   action: string,
-   *   component: string,
-   *   details?: unknown,
-   *   message: string
-   * }) => void }} [deps.logger]
+   * @param {{
+   *   logComponentAction?: (entry: {
+   *     action: string,
+   *     component: string,
+   *     details?: unknown,
+   *     message: string
+   *   }) => void,
+   *   logEventProcessing?: (entry: {
+   *     action: string,
+   *     component: string,
+   *     details?: unknown,
+   *     loggingContext?: Github_Flows_Event_Logging_Context__Data,
+   *     message: string,
+   *     stage?: string,
+   *   }) => Promise<void>,
+   * }} [deps.logger]
    * @param {typeof import("node:path")} deps.pathModule
    * @param {Github_Flows_Config_Runtime} deps.runtime
    */
-  constructor({ fsPromises, logger, pathModule, runtime }) {
+  constructor({ eventLog, fsPromises, logger, pathModule, runtime }) {
     /**
      * @param {{
      *   event: unknown,
+     *   loggingContext?: Github_Flows_Event_Logging_Context__Data,
      *   selectedProfile: Github_Flows_Execution_Profile__Selected,
      *   workspace: Github_Flows_Execution_Workspace
      * }} params
      * @returns {Promise<string>}
      */
-    this.materialize = async function ({ event, selectedProfile, workspace }) {
+    this.materialize = async function ({ event, loggingContext, selectedProfile, workspace }) {
       const execution = asRecord(selectedProfile.execution);
       const handler = asRecord(execution.handler);
       const promptRef = requireString(handler.promptRef, "execution.handler.promptRef");
@@ -104,6 +116,18 @@ export default class Github_Flows_Execution_Preparation_Prompt_Materializer {
         },
         message: `Materialized prompt template for profile ${selectedProfile.id}.`,
       });
+      await eventLog?.logEventProcessing?.({
+        action: "prompt-materialize",
+        component: "Github_Flows_Execution_Preparation_Prompt_Materializer",
+        details: {
+          profileId: selectedProfile.id,
+          promptRef,
+          templatePath,
+        },
+        loggingContext,
+        message: `Materialized prompt template for profile ${selectedProfile.id}.`,
+        stage: "execution-preparation",
+      });
 
       return prompt;
     };
@@ -112,6 +136,7 @@ export default class Github_Flows_Execution_Preparation_Prompt_Materializer {
 
 export const __deps__ = Object.freeze({
   default: Object.freeze({
+    eventLog: "Github_Flows_Web_Handler_Webhook_EventLog$",
     fsPromises: "node:fs/promises",
     logger: "Github_Flows_Logger$",
     pathModule: "node:path",

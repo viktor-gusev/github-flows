@@ -30,6 +30,13 @@ function createRequest({ body = "{}", path = "/webhooks/github", secret = "share
 function createContext({ body = "{}", path = "/webhooks/github", secret = "shared-secret" } = {}) {
   const calls = [];
   const eventLogCalls = [];
+  const loggingContext = {
+    eventId: "delivery-123",
+    eventType: "issues",
+    logDirectory: "/tmp/github-flows/log/run/octocat/demo/issues/delivery-123",
+    owner: "octocat",
+    repo: "demo",
+  };
   const startCalls = [];
   const resolveCalls = [];
 
@@ -42,11 +49,25 @@ function createContext({ body = "{}", path = "/webhooks/github", secret = "share
       logReception(entry) {
         eventLogCalls.push({ method: "logReception", entry });
       },
+      async logEventProcessing(entry) {
+        eventLogCalls.push({ method: "logEventProcessing", entry });
+      },
       logIngress(entry) {
         eventLogCalls.push({ method: "logIngress", entry });
       },
-      logDecisionTrace(entry) {
+      async logDecisionTrace(entry) {
         eventLogCalls.push({ method: "logDecisionTrace", entry });
+      },
+      async persistEffectiveProfile(entry) {
+        eventLogCalls.push({ method: "persistEffectiveProfile", entry });
+      },
+      async persistEventSnapshot(entry) {
+        eventLogCalls.push({ method: "persistEventSnapshot", entry });
+      },
+    },
+    eventLoggingContext: {
+      createByGithubEvent() {
+        return loggingContext;
       },
     },
     executionProfileResolver: {
@@ -126,6 +147,7 @@ function createContext({ body = "{}", path = "/webhooks/github", secret = "share
 test("webhook handler exposes teq-web handler contract", async () => {
   const handler = new Github_Flows_Web_Handler_Webhook({
     eventLog: {},
+    eventLoggingContext: { createByGithubEvent: () => ({}) },
     executionProfileResolver: { resolveByGithubEvent: async () => ({ selectedProfile: null, matchedCandidates: [], eventAttributes: {}, applicabilityBasis: null }) },
     executionStartCoordinator: { start: async () => ({ attempted: true, completed: true, exit: "success", stderr: "", stdout: "" }) },
     runtime: { webhookSecret: "shared-secret" },
@@ -150,11 +172,12 @@ test("webhook handler accepts matching webhook requests and logs admission after
       owner: { login: "octocat" },
     },
   };
-  const { calls, context, eventLog, eventLogCalls, executionProfileResolver, executionStartCoordinator, resolveCalls, startCalls } = createContext({
+  const { calls, context, eventLog, eventLogCalls, eventLoggingContext, executionProfileResolver, executionStartCoordinator, resolveCalls, startCalls } = createContext({
     body: JSON.stringify(payload),
   });
   const handler = new Github_Flows_Web_Handler_Webhook({
     eventLog,
+    eventLoggingContext,
     executionProfileResolver,
     executionStartCoordinator,
     runtime: { webhookSecret: "shared-secret" },
@@ -166,10 +189,24 @@ test("webhook handler accepts matching webhook requests and logs admission after
   assert.equal(eventLogCalls[0].method, "logReception");
   assert.deepEqual(resolveCalls, [{
     headers: context.request.headers,
+    loggingContext: {
+      eventId: "delivery-123",
+      eventType: "issues",
+      logDirectory: "/tmp/github-flows/log/run/octocat/demo/issues/delivery-123",
+      owner: "octocat",
+      repo: "demo",
+    },
     payload,
   }]);
   assert.deepEqual(startCalls, [{
     event: payload,
+    loggingContext: {
+      eventId: "delivery-123",
+      eventType: "issues",
+      logDirectory: "/tmp/github-flows/log/run/octocat/demo/issues/delivery-123",
+      owner: "octocat",
+      repo: "demo",
+    },
     selectedProfile: {
       id: "issues/profile.json",
       orderKey: "issues/profile.json",
@@ -186,9 +223,18 @@ test("webhook handler accepts matching webhook requests and logs admission after
       },
     },
   }]);
-  assert.deepEqual(eventLogCalls[1], {
+  assert.deepEqual(eventLogCalls[1].method, "persistEventSnapshot");
+  assert.deepEqual(eventLogCalls[2].method, "logEventProcessing");
+  assert.deepEqual(eventLogCalls[3], {
     method: "logDecisionTrace",
     entry: {
+      loggingContext: {
+        eventId: "delivery-123",
+        eventType: "issues",
+        logDirectory: "/tmp/github-flows/log/run/octocat/demo/issues/delivery-123",
+        owner: "octocat",
+        repo: "demo",
+      },
       resolutionInputs: {
         action: "opened",
         event: "issues",
@@ -225,7 +271,8 @@ test("webhook handler accepts matching webhook requests and logs admission after
       decision: "start",
     },
   });
-  assert.deepEqual(eventLogCalls[2], {
+  assert.deepEqual(eventLogCalls[4].method, "persistEffectiveProfile");
+  assert.deepEqual(eventLogCalls[5], {
     method: "logIngress",
     entry: { outcome: "admitted" },
   });
@@ -247,6 +294,7 @@ test("webhook handler rejects invalid signature after reception logging", async 
   const { calls, context, eventLog, eventLogCalls, executionProfileResolver, resolveCalls } = createContext();
   const handler = new Github_Flows_Web_Handler_Webhook({
     eventLog,
+    eventLoggingContext: { createByGithubEvent: () => ({}) },
     executionProfileResolver,
     executionStartCoordinator: { start: async () => ({ attempted: true, completed: true, exit: "success", stderr: "", stdout: "" }) },
     runtime: { webhookSecret: "shared-secret" },
@@ -279,6 +327,7 @@ test("webhook handler ignores non-webhook paths", async () => {
   const { calls, context, eventLog, eventLogCalls, executionProfileResolver } = createContext({ path: "/other" });
   const handler = new Github_Flows_Web_Handler_Webhook({
     eventLog,
+    eventLoggingContext: { createByGithubEvent: () => ({}) },
     executionProfileResolver,
     executionStartCoordinator: { start: async () => ({ attempted: true, completed: true, exit: "success", stderr: "", stdout: "" }) },
     runtime: { webhookSecret: "shared-secret" },
@@ -297,6 +346,7 @@ test("webhook handler rejects invalid json after signature validation", async ()
   });
   const handler = new Github_Flows_Web_Handler_Webhook({
     eventLog,
+    eventLoggingContext: { createByGithubEvent: () => ({}) },
     executionProfileResolver,
     executionStartCoordinator: { start: async () => ({ attempted: true, completed: true, exit: "success", stderr: "", stdout: "" }) },
     runtime: { webhookSecret: "shared-secret" },
@@ -334,11 +384,12 @@ test("webhook handler returns 500 if execution start fails", async () => {
       owner: { login: "octocat" },
     },
   };
-  const { calls, context, eventLog, eventLogCalls, executionProfileResolver, resolveCalls, startCalls } = createContext({
+  const { calls, context, eventLog, eventLogCalls, eventLoggingContext, executionProfileResolver, resolveCalls, startCalls } = createContext({
     body: JSON.stringify(payload),
   });
   const handler = new Github_Flows_Web_Handler_Webhook({
     eventLog,
+    eventLoggingContext,
     executionProfileResolver,
     executionStartCoordinator: {
       async start(entry) {
@@ -378,11 +429,12 @@ test("webhook handler skips execution when no profile matches", async () => {
       owner: { login: "octocat" },
     },
   };
-  const { calls, context, eventLog, eventLogCalls, executionStartCoordinator, startCalls } = createContext({
+  const { calls, context, eventLog, eventLogCalls, eventLoggingContext, executionStartCoordinator, startCalls } = createContext({
     body: JSON.stringify(payload),
   });
   const handler = new Github_Flows_Web_Handler_Webhook({
     eventLog,
+    eventLoggingContext,
     executionProfileResolver: {
       async resolveByGithubEvent() {
         return {
@@ -406,9 +458,18 @@ test("webhook handler skips execution when no profile matches", async () => {
 
   assert.equal(eventLogCalls[0].method, "logReception");
   assert.deepEqual(startCalls, []);
-  assert.deepEqual(eventLogCalls[1], {
+  assert.equal(eventLogCalls[1].method, "persistEventSnapshot");
+  assert.equal(eventLogCalls[2].method, "logEventProcessing");
+  assert.deepEqual(eventLogCalls[3], {
     method: "logDecisionTrace",
     entry: {
+      loggingContext: {
+        eventId: "delivery-123",
+        eventType: "issues",
+        logDirectory: "/tmp/github-flows/log/run/octocat/demo/issues/delivery-123",
+        owner: "octocat",
+        repo: "demo",
+      },
       resolutionInputs: {
         action: "opened",
         event: "issues",
@@ -422,6 +483,7 @@ test("webhook handler skips execution when no profile matches", async () => {
       decision: "skip",
     },
   });
+  assert.equal(eventLogCalls[4].method, "logEventProcessing");
   assert.deepEqual(calls, [
     {
       method: "writeHead",

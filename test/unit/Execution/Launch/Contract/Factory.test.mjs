@@ -4,9 +4,16 @@ import test from "node:test";
 import Github_Flows_Execution_Launch_Contract_Factory from "../../../../../src/Execution/Launch/Contract/Factory.mjs";
 
 test("launch contract factory creates fully resolved contract from explicit profile and workspace", () => {
-  const factory = new Github_Flows_Execution_Launch_Contract_Factory({});
+  const factory = new Github_Flows_Execution_Launch_Contract_Factory({ eventLog: {} });
 
   const contract = factory.create({
+    loggingContext: {
+      eventId: "evt-1",
+      eventType: "issues",
+      logDirectory: "/tmp/github-flows/log/run/octocat/demo/issues/evt-1",
+      owner: "octocat",
+      repo: "demo",
+    },
     prompt: "Solve the task.",
     selectedProfile: {
       id: "issues/profile.json",
@@ -64,9 +71,16 @@ test("launch contract factory creates fully resolved contract from explicit prof
 });
 
 test("launch contract factory fails when explicit fields are missing", () => {
-  const factory = new Github_Flows_Execution_Launch_Contract_Factory({});
+  const factory = new Github_Flows_Execution_Launch_Contract_Factory({ eventLog: {} });
 
   assert.throws(() => factory.create({
+    loggingContext: {
+      eventId: "evt-1",
+      eventType: "issues",
+      logDirectory: "/tmp/github-flows/log/run/octocat/demo/issues/evt-1",
+      owner: "octocat",
+      repo: "demo",
+    },
     prompt: "Solve the task.",
     selectedProfile: {
       id: "issues/profile.json",

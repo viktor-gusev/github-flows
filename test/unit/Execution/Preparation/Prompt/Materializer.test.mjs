@@ -13,6 +13,7 @@ test("prompt materializer resolves template relative to promptRef source and rep
   await fs.writeFile(path.join(templateDir, "default.md"), "Repo {{event.repository.name}} at {{workspacePath}} for {{eventId}}.", "utf8");
 
   const materializer = new Github_Flows_Execution_Preparation_Prompt_Materializer({
+    eventLog: { async logEventProcessing() {} },
     fsPromises: fs,
     pathModule: path,
     runtime: { workspaceRoot },
@@ -23,6 +24,13 @@ test("prompt materializer resolves template relative to promptRef source and rep
       event: {
         eventId: "evt-1",
         repository: { name: "demo" },
+      },
+      loggingContext: {
+        eventId: "evt-1",
+        eventType: "issues",
+        logDirectory: "/tmp/github-flows/log/run/octocat/demo/issues/evt-1",
+        owner: "octocat",
+        repo: "demo",
       },
       selectedProfile: {
         id: "issues/profile.json",
@@ -67,6 +75,7 @@ test("prompt materializer resolves template relative to promptRef source and rep
 test("prompt materializer rejects promptRef that escapes cfg", async () => {
   const workspaceRoot = await fs.mkdtemp(path.join(os.tmpdir(), "github-flows-prompt-"));
   const materializer = new Github_Flows_Execution_Preparation_Prompt_Materializer({
+    eventLog: { async logEventProcessing() {} },
     fsPromises: fs,
     pathModule: path,
     runtime: { workspaceRoot },
@@ -76,6 +85,13 @@ test("prompt materializer rejects promptRef that escapes cfg", async () => {
     await assert.rejects(
       materializer.materialize({
         event: {},
+        loggingContext: {
+          eventId: "evt-1",
+          eventType: "issues",
+          logDirectory: "/tmp/github-flows/log/run/octocat/demo/issues/evt-1",
+          owner: "octocat",
+          repo: "demo",
+        },
         selectedProfile: {
           id: "issues/profile.json",
           orderKey: "issues/profile.json",

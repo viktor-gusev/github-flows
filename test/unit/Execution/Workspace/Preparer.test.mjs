@@ -22,6 +22,11 @@ test("workspace preparer creates execution workspace and clones repository from 
         callback(null, "", "");
       },
     },
+    eventLog: {
+      async logEventProcessing(entry) {
+        logCalls.push({ archival: true, ...entry });
+      },
+    },
     logger: {
       logComponentAction(entry) {
         logCalls.push(entry);
@@ -49,6 +54,13 @@ test("workspace preparer creates execution workspace and clones repository from 
           name: "demo",
           owner: { login: "octocat" },
         },
+      },
+      loggingContext: {
+        eventId: "evt-42",
+        eventType: "pull_request_opened",
+        logDirectory: path.resolve(workspaceRoot, "log", "run", "octocat", "demo", "pull_request_opened", "evt-42"),
+        owner: "octocat",
+        repo: "demo",
       },
     });
 
@@ -85,6 +97,27 @@ test("workspace preparer creates execution workspace and clones repository from 
         message: "Created execution workspace for octocat/demo.",
       },
       {
+        archival: true,
+        action: "workspace-create",
+        component: "Github_Flows_Execution_Workspace_Preparer",
+        details: {
+          eventId: "evt-42",
+          eventType: "pull_request_opened",
+          owner: "octocat",
+          repo: "demo",
+          workspacePath: path.resolve(workspaceRoot, "ws", "octocat", "demo", "pull_request_opened", "evt-42"),
+        },
+        loggingContext: {
+          eventId: "evt-42",
+          eventType: "pull_request_opened",
+          logDirectory: path.resolve(workspaceRoot, "log", "run", "octocat", "demo", "pull_request_opened", "evt-42"),
+          owner: "octocat",
+          repo: "demo",
+        },
+        message: "Created execution workspace for octocat/demo.",
+        stage: "execution-preparation",
+      },
+      {
         component: "Github_Flows_Execution_Workspace_Preparer",
         action: "workspace-repo-clone",
         details: {
@@ -95,6 +128,27 @@ test("workspace preparer creates execution workspace and clones repository from 
           workspacePath: path.resolve(workspaceRoot, "ws", "octocat", "demo", "pull_request_opened", "evt-42"),
         },
         message: "Cloned repository into execution workspace for octocat/demo.",
+      },
+      {
+        archival: true,
+        action: "workspace-repo-clone",
+        component: "Github_Flows_Execution_Workspace_Preparer",
+        details: {
+          owner: "octocat",
+          repo: "demo",
+          repositoryCachePath: cachePath,
+          repoPath: path.resolve(result.workspacePath, "repo"),
+          workspacePath: path.resolve(result.workspacePath),
+        },
+        loggingContext: {
+          eventId: "evt-42",
+          eventType: "pull_request_opened",
+          logDirectory: path.resolve(workspaceRoot, "log", "run", "octocat", "demo", "pull_request_opened", "evt-42"),
+          owner: "octocat",
+          repo: "demo",
+        },
+        message: "Cloned repository into execution workspace for octocat/demo.",
+        stage: "execution-preparation",
       },
     ]);
   } finally {
@@ -110,6 +164,7 @@ test("workspace preparer generates fallback event id when payload has no stable 
         callback(null, "", "");
       },
     },
+    eventLog: {},
     fsPromises: fs,
     nowFactory: () => new Date("2026-04-04T10:11:12.000Z"),
     pathModule: path,
@@ -152,6 +207,7 @@ test("workspace preparer rejects reuse of an existing execution workspace path",
         callback(null, "", "");
       },
     },
+    eventLog: {},
     fsPromises: fs,
     pathModule: path,
     repoCacheManager: {

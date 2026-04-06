@@ -44,13 +44,14 @@ function parseJsonBody(body) {
 export default class Github_Flows_Web_Handler_Webhook {
   /**
    * @param {object} deps
-   * @param {Github_Flows_Web_Handler_Webhook_EventLog} deps.eventLog
-   * @param {Github_Flows_Execution_Profile_Resolver} deps.executionProfileResolver
-   * @param {Github_Flows_Execution_Start_Coordinator} deps.executionStartCoordinator
-   * @param {Github_Flows_Config_Runtime} deps.runtime
-   * @param {Github_Flows_Web_Handler_Webhook_Signature} deps.signature
-   */
-  constructor({ eventLog, executionProfileResolver, executionStartCoordinator, runtime, signature }) {
+ * @param {Github_Flows_Web_Handler_Webhook_EventLog} deps.eventLog
+ * @param {Github_Flows_Event_Logging_Context} deps.eventLoggingContext
+ * @param {Github_Flows_Execution_Profile_Resolver} deps.executionProfileResolver
+ * @param {Github_Flows_Execution_Start_Coordinator} deps.executionStartCoordinator
+ * @param {Github_Flows_Config_Runtime} deps.runtime
+ * @param {Github_Flows_Web_Handler_Webhook_Signature} deps.signature
+ */
+  constructor({ eventLog, eventLoggingContext, executionProfileResolver, executionStartCoordinator, runtime, signature }) {
     this.getRegistrationInfo = function () {
       return {
         name: "Github_Flows_Web_Handler_Webhook",
@@ -98,13 +99,39 @@ export default class Github_Flows_Web_Handler_Webhook {
       }
 
       try {
+        const loggingContext = eventLoggingContext.createByGithubEvent({
+          headers: request.headers,
+          payload,
+        });
+        await eventLog.persistEventSnapshot({
+          headers: request.headers,
+          loggingContext,
+          payload,
+        });
+        await eventLog.logEventProcessing({
+          action: "admitted-event-snapshot",
+          component: "Github_Flows_Web_Handler_Webhook",
+          details: {
+            eventId: loggingContext.eventId,
+            eventType: loggingContext.eventType,
+            logDirectory: loggingContext.logDirectory,
+            owner: loggingContext.owner,
+            repo: loggingContext.repo,
+          },
+          loggingContext,
+          message: `Initialized event-scoped archival logging for ${loggingContext.owner}/${loggingContext.repo}.`,
+          stage: "admission",
+        });
+
         const resolution = await executionProfileResolver.resolveByGithubEvent({
           headers: request.headers,
+          loggingContext,
           payload,
         });
         const selectedProfile = resolution.selectedProfile;
 
-        eventLog.logDecisionTrace({
+        await eventLog.logDecisionTrace({
+          loggingContext,
           resolutionInputs: resolution.eventAttributes,
           decisionBasis: {
             applicabilityBasis: resolution.applicabilityBasis,
@@ -121,10 +148,23 @@ export default class Github_Flows_Web_Handler_Webhook {
         });
 
         if (selectedProfile) {
-          const outcome = await executionStartCoordinator.start({ event: payload, selectedProfile });
+          await eventLog.persistEffectiveProfile({ loggingContext, selectedProfile });
+          const outcome = await executionStartCoordinator.start({ event: payload, loggingContext, selectedProfile });
           if (!outcome.completed || outcome.exit !== "success") {
             throw new Error(`Execution runtime ended with status: ${outcome.exit}`);
           }
+        } else {
+          await eventLog.logEventProcessing({
+            action: "execution-skip",
+            component: "Github_Flows_Web_Handler_Webhook",
+            details: {
+              eventId: loggingContext.eventId,
+              selectedProfile: null,
+            },
+            loggingContext,
+            message: `Skipped execution for admitted event ${loggingContext.eventId}.`,
+            stage: "execution-decision",
+          });
         }
       } catch {
         if (!response.headersSent) {
@@ -148,6 +188,7 @@ export default class Github_Flows_Web_Handler_Webhook {
 export const __deps__ = Object.freeze({
   default: Object.freeze({
     eventLog: "Github_Flows_Web_Handler_Webhook_EventLog$",
+    eventLoggingContext: "Github_Flows_Event_Logging_Context$",
     executionProfileResolver: "Github_Flows_Execution_Profile_Resolver$",
     executionStartCoordinator: "Github_Flows_Execution_Start_Coordinator$",
     runtime: "Github_Flows_Config_Runtime$",

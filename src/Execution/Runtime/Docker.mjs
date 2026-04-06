@@ -2,8 +2,6 @@
  * Runs one resolved launch contract inside an isolated Docker container.
  */
 const CONTAINER_WORKSPACE_PATH = "/workspace";
-const EXECUTION_WORKSPACE_BRANCH = "ws";
-const EXECUTION_LOG_BRANCH = "log/run";
 
 function quoteShell(value) {
   return `'${String(value).replaceAll("'", "'\"'\"'")}'`;
@@ -129,21 +127,8 @@ function buildDockerArgs(contract) {
   return args;
 }
 
-function resolveLogPaths(pathModule, contract) {
-  const workspaceRoot = pathModule.resolve(contract.environment.workspaceRoot);
-  const workspacePath = pathModule.resolve(contract.environment.workspacePath);
-  const executionRoot = pathModule.resolve(workspaceRoot, EXECUTION_WORKSPACE_BRANCH);
-  const relativeWorkspacePath = pathModule.relative(executionRoot, workspacePath);
-
-  if (
-    relativeWorkspacePath.length === 0
-    || relativeWorkspacePath.startsWith("..")
-    || pathModule.isAbsolute(relativeWorkspacePath)
-  ) {
-    throw new Error("Launch contract environment.workspacePath must be located under workspaceRoot/ws.");
-  }
-
-  const logDirectory = pathModule.resolve(workspaceRoot, EXECUTION_LOG_BRANCH, relativeWorkspacePath);
+function resolveLogPaths(pathModule, loggingContext) {
+  const logDirectory = pathModule.resolve(loggingContext.logDirectory);
   return {
     logDirectory,
     stderrPath: pathModule.join(logDirectory, "stderr.log"),
@@ -158,9 +143,9 @@ async function closeStream(stream) {
   });
 }
 
-async function runDocker({ childProcess, contract, fsModule, fsPromises, pathModule }) {
+async function runDocker({ childProcess, contract, fsModule, fsPromises, loggingContext, pathModule }) {
   const dockerArgs = buildDockerArgs(contract);
-  const logs = resolveLogPaths(pathModule, contract);
+  const logs = resolveLogPaths(pathModule, loggingContext);
   await fsPromises.mkdir(logs.logDirectory, { recursive: true });
 
   return await new Promise((resolve, reject) => {
@@ -248,6 +233,7 @@ export default class Github_Flows_Execution_Runtime_Docker {
   /**
    * @param {object} deps
    * @param {{ spawn: typeof import("node:child_process").spawn }} deps.childProcess
+   * @param {Github_Flows_Web_Handler_Webhook_EventLog} deps.eventLog
    * @param {typeof import("node:fs")} deps.fsModule
    * @param {typeof import("node:fs/promises")} deps.fsPromises
    * @param {typeof import("node:path")} deps.pathModule
@@ -258,12 +244,15 @@ export default class Github_Flows_Execution_Runtime_Docker {
    *   message: string
    * }) => void }} [deps.logger]
    */
-  constructor({ childProcess, fsModule, fsPromises, logger, pathModule }) {
+  constructor({ childProcess, eventLog, fsModule, fsPromises, logger, pathModule }) {
     /**
-     * @param {{ launchContract: Github_Flows_Execution_Launch_Contract }} params
+     * @param {{
+     *   launchContract: Github_Flows_Execution_Launch_Contract,
+     *   loggingContext: Github_Flows_Event_Logging_Context__Data,
+     * }} params
      * @returns {Promise<Github_Flows_Execution_Runtime_Result>}
      */
-    this.run = async function ({ launchContract }) {
+    this.run = async function ({ launchContract, loggingContext }) {
       const contract = validateLaunchContract(launchContract);
       await fsPromises.stat(contract.environment.workspaceRoot);
       await fsPromises.stat(contract.environment.workspacePath);
@@ -278,9 +267,22 @@ export default class Github_Flows_Execution_Runtime_Docker {
         },
         message: `Starting containerized execution for ${contract.handler.type}.`,
       });
+      await eventLog.logEventProcessing({
+        action: "docker-run-start",
+        component: "Github_Flows_Execution_Runtime_Docker",
+        details: {
+          image: contract.environment.image,
+          timeoutSec: contract.environment.timeoutSec,
+          workspaceRoot: contract.environment.workspaceRoot,
+          workspacePath: contract.environment.workspacePath,
+        },
+        loggingContext,
+        message: `Starting containerized execution for ${contract.handler.type}.`,
+        stage: "runtime",
+      });
 
       try {
-        const result = await runDocker({ childProcess, contract, fsModule, fsPromises, pathModule });
+        const result = await runDocker({ childProcess, contract, fsModule, fsPromises, loggingContext, pathModule });
         logger?.logComponentAction?.({
           component: "Github_Flows_Execution_Runtime_Docker",
           action: "docker-run-complete",
@@ -290,6 +292,18 @@ export default class Github_Flows_Execution_Runtime_Docker {
             workspacePath: contract.environment.workspacePath,
           },
           message: `Completed containerized execution for ${contract.handler.type}.`,
+        });
+        await eventLog.logEventProcessing({
+          action: "docker-run-complete",
+          component: "Github_Flows_Execution_Runtime_Docker",
+          details: {
+            image: contract.environment.image,
+            workspaceRoot: contract.environment.workspaceRoot,
+            workspacePath: contract.environment.workspacePath,
+          },
+          loggingContext,
+          message: `Completed containerized execution for ${contract.handler.type}.`,
+          stage: "runtime",
         });
         return {
           attempted: true,
@@ -315,6 +329,20 @@ export default class Github_Flows_Execution_Runtime_Docker {
             ? `Timed out containerized execution for ${contract.handler.type}.`
             : `Failed containerized execution for ${contract.handler.type}.`,
         });
+        await eventLog.logEventProcessing({
+          action: exit === "timeout" ? "docker-run-timeout" : "docker-run-failed",
+          component: "Github_Flows_Execution_Runtime_Docker",
+          details: {
+            image: contract.environment.image,
+            workspaceRoot: contract.environment.workspaceRoot,
+            workspacePath: contract.environment.workspacePath,
+          },
+          loggingContext,
+          message: exit === "timeout"
+            ? `Timed out containerized execution for ${contract.handler.type}.`
+            : `Failed containerized execution for ${contract.handler.type}.`,
+          stage: "runtime",
+        });
         return {
           attempted: true,
           completed: false,
@@ -330,6 +358,7 @@ export default class Github_Flows_Execution_Runtime_Docker {
 export const __deps__ = Object.freeze({
   default: Object.freeze({
     childProcess: "node:child_process",
+    eventLog: "Github_Flows_Web_Handler_Webhook_EventLog$",
     fsModule: "node:fs",
     fsPromises: "node:fs/promises",
     logger: "Github_Flows_Logger$",

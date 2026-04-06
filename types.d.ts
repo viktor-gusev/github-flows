@@ -1,4 +1,12 @@
 declare global {
+  type Github_Flows_Event_Logging_Context__Data = {
+    eventId: string,
+    eventType: string,
+    logDirectory: string,
+    owner: string,
+    repo: string,
+  };
+  type Github_Flows_Event_Logging_Context = import("./src/Event/Logging/Context.mjs").default;
   type Github_Flows_Web_Handler_Webhook_EventLog__Value =
     | null
     | boolean
@@ -30,6 +38,22 @@ declare global {
     resolutionInputs: Github_Flows_Web_Handler_Webhook_EventLog__Value;
     decisionBasis: Github_Flows_Web_Handler_Webhook_EventLog__Value;
     decision: string;
+  };
+  type Github_Flows_Web_Handler_Webhook_EventLog__SnapshotEntry = {
+    headers: Github_Flows_Web_Handler_Webhook_EventLog__Headers;
+    body: unknown;
+  };
+  type Github_Flows_Web_Handler_Webhook_EventLog__ArchivalEntry = {
+    type: "github-flows" | "github-webhook";
+    stage: string;
+    loggedAt: string;
+    component?: string;
+    action?: string;
+    details?: unknown;
+    message?: string;
+    decision?: string;
+    resolutionInputs?: Github_Flows_Web_Handler_Webhook_EventLog__Value;
+    decisionBasis?: Github_Flows_Web_Handler_Webhook_EventLog__Value;
   };
   type Github_Flows_Logger__ComponentActionEntry = {
     type: "github-flows";

@@ -88,12 +88,23 @@ export default class Github_Flows_Execution_Workspace_Preparer {
   /**
    * @param {object} deps
    * @param {typeof import("node:child_process")} deps.childProcess
-   * @param {{ logComponentAction?: (entry: {
-   *   action: string,
-   *   component: string,
-   *   details?: unknown,
-   *   message: string
-   * }) => void }} [deps.logger]
+   * @param {Github_Flows_Web_Handler_Webhook_EventLog} deps.eventLog
+   * @param {{
+   *   logComponentAction?: (entry: {
+   *     action: string,
+   *     component: string,
+   *     details?: unknown,
+   *     message: string
+   *   }) => void,
+   *   logEventProcessing?: (entry: {
+   *     action: string,
+   *     component: string,
+   *     details?: unknown,
+   *     loggingContext?: Github_Flows_Event_Logging_Context__Data,
+   *     message: string,
+   *     stage?: string,
+   *   }) => Promise<void>,
+   * }} [deps.logger]
    * @param {typeof import("node:fs/promises")} deps.fsPromises
    * @param {typeof import("node:path")} deps.pathModule
    * @param {Github_Flows_Repo_Cache_Manager} deps.repoCacheManager
@@ -101,8 +112,9 @@ export default class Github_Flows_Execution_Workspace_Preparer {
    * @param {() => Date} [deps.nowFactory]
    * @param {(upperBound: number) => number} [deps.randomIntFactory]
    */
-  constructor({
+   constructor({
     childProcess,
+    eventLog,
     fsPromises,
     logger,
     nowFactory = () => new Date(),
@@ -112,7 +124,7 @@ export default class Github_Flows_Execution_Workspace_Preparer {
     runtime,
   }) {
     /**
-     * @param {{ event: unknown }} params
+     * @param {{ event: unknown, loggingContext?: Github_Flows_Event_Logging_Context__Data }} params
      * @returns {Promise<{
      *   eventId: string,
      *   eventType: string,
@@ -125,11 +137,13 @@ export default class Github_Flows_Execution_Workspace_Preparer {
      *   workspacePath: string
      * }>}
      */
-    this.prepareByGithubEvent = async function ({ event }) {
+    this.prepareByGithubEvent = async function ({ event, loggingContext }) {
       const payload = /** @type {{ repository?: unknown }} */ (event);
-      const identity = extractIdentity(payload.repository);
-      const eventType = extractEventType(event);
-      const eventId = extractEventId(event, nowFactory, randomIntFactory);
+      const identity = loggingContext
+        ? { owner: loggingContext.owner, repo: loggingContext.repo }
+        : extractIdentity(payload.repository);
+      const eventType = loggingContext?.eventType ?? extractEventType(event);
+      const eventId = loggingContext?.eventId ?? extractEventId(event, nowFactory, randomIntFactory);
       const workspacePath = pathModule.resolve(
         runtime.workspaceRoot,
         "ws",
@@ -149,6 +163,14 @@ export default class Github_Flows_Execution_Workspace_Preparer {
         details: { eventId, eventType, owner: identity.owner, repo: identity.repo, workspacePath },
         message: `Created execution workspace for ${identity.owner}/${identity.repo}.`,
       });
+      await eventLog?.logEventProcessing?.({
+        action: "workspace-create",
+        component: "Github_Flows_Execution_Workspace_Preparer",
+        details: { eventId, eventType, owner: identity.owner, repo: identity.repo, workspacePath },
+        loggingContext,
+        message: `Created execution workspace for ${identity.owner}/${identity.repo}.`,
+        stage: "execution-preparation",
+      });
 
       await runCommand(childProcess, "git", ["clone", "--no-hardlinks", cacheEntry.path, repoPath]);
       logger?.logComponentAction?.({
@@ -162,6 +184,20 @@ export default class Github_Flows_Execution_Workspace_Preparer {
           workspacePath,
         },
         message: `Cloned repository into execution workspace for ${identity.owner}/${identity.repo}.`,
+      });
+      await eventLog?.logEventProcessing?.({
+        action: "workspace-repo-clone",
+        component: "Github_Flows_Execution_Workspace_Preparer",
+        details: {
+          owner: identity.owner,
+          repo: identity.repo,
+          repositoryCachePath: cacheEntry.path,
+          repoPath,
+          workspacePath,
+        },
+        loggingContext,
+        message: `Cloned repository into execution workspace for ${identity.owner}/${identity.repo}.`,
+        stage: "execution-preparation",
       });
 
       try {
@@ -198,6 +234,7 @@ export default class Github_Flows_Execution_Workspace_Preparer {
 export const __deps__ = Object.freeze({
   default: Object.freeze({
     childProcess: "node:child_process",
+    eventLog: "Github_Flows_Web_Handler_Webhook_EventLog$",
     fsPromises: "node:fs/promises",
     logger: "Github_Flows_Logger$",
     pathModule: "node:path",

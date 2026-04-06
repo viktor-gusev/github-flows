@@ -64,6 +64,11 @@ test("docker runtime starts container from launch contract", async () => {
         return processMock;
       },
     },
+    eventLog: {
+      async logEventProcessing(entry) {
+        logs.push({ archival: true, ...entry });
+      },
+    },
     fsModule: fsSync,
     fsPromises: fs,
     pathModule: path,
@@ -93,6 +98,13 @@ test("docker runtime starts container from launch contract", async () => {
           env: { DEMO: "1" },
           timeoutSec: 1800,
         },
+      },
+      loggingContext: {
+        eventId: "evt-1",
+        eventType: "issues",
+        logDirectory: path.join(workspaceRoot, "log", "run", "octocat", "demo", "issues", "evt-1"),
+        owner: "octocat",
+        repo: "demo",
       },
     });
 
@@ -126,7 +138,11 @@ test("docker runtime starts container from launch contract", async () => {
     assert.match(calls[0].args[14], /test -d repo/);
     assert.match(calls[0].args[14], /printf %s 'Solve the task\.'/);
     assert.equal(logs[0].action, "docker-run-start");
-    assert.equal(logs[1].action, "docker-run-complete");
+    assert.equal(logs[1].archival, true);
+    assert.equal(logs[1].action, "docker-run-start");
+    assert.equal(logs[2].action, "docker-run-complete");
+    assert.equal(logs[3].archival, true);
+    assert.equal(logs[3].action, "docker-run-complete");
     assert.equal(await fs.readFile(path.join(workspaceRoot, "log", "run", "octocat", "demo", "issues", "evt-1", "stdout.log"), "utf8"), "ok");
     assert.equal(await fs.readFile(path.join(workspaceRoot, "log", "run", "octocat", "demo", "issues", "evt-1", "stderr.log"), "utf8"), "warn");
     assert.deepEqual(observedStdout, ["ok"]);
@@ -175,6 +191,7 @@ test("docker runtime reports timeout outcome", async () => {
         return processMock;
       },
     },
+    eventLog: { async logEventProcessing() {} },
     fsModule: fsSync,
     fsPromises: fs,
     pathModule: path,
@@ -186,6 +203,13 @@ test("docker runtime reports timeout outcome", async () => {
         type: "docker",
         handler: { command: ["echo"], args: ["hi"], prompt: "", type: "codex" },
         environment: { dockerArgs: [], image: "codex-agent", workspaceRoot, workspacePath, setupScript: "", env: {}, timeoutSec: 1 },
+      },
+      loggingContext: {
+        eventId: "evt-2",
+        eventType: "issues",
+        logDirectory: path.join(workspaceRoot, "log", "run", "octocat", "demo", "issues", "evt-2"),
+        owner: "octocat",
+        repo: "demo",
       },
     });
 

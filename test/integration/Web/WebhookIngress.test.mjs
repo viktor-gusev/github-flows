@@ -255,14 +255,26 @@ test("webhook ingress is served on the static GitHub webhook path", { timeout: 5
       fs.stat(path.resolve(workspaceRoot, "cache", "repo", "octocat", "demo", ".git")),
     );
     await assert.doesNotReject(
-      fs.stat(path.resolve(workspaceRoot, "ws", "octocat", "demo", "opened", "evt-1", "repo", ".git")),
+      fs.stat(path.resolve(workspaceRoot, "ws", "octocat", "demo", "issues", "evt-1", "repo", ".git")),
     );
+    const eventScope = path.resolve(workspaceRoot, "log", "run", "octocat", "demo", "issues", "evt-1");
+    const eventSnapshot = JSON.parse(await fs.readFile(path.resolve(eventScope, "event.json"), "utf8"));
+    const effectiveProfile = JSON.parse(await fs.readFile(path.resolve(eventScope, "effective-profile.json"), "utf8"));
+    const eventsLog = (await fs.readFile(path.resolve(eventScope, "events.log"), "utf8"))
+      .trim()
+      .split("\n")
+      .map((line) => JSON.parse(line));
+
+    assert.equal(eventSnapshot.body.eventId, "evt-1");
+    assert.equal(eventSnapshot.headers["x-github-event"], "issues");
+    assert.equal(effectiveProfile.id, "issues/profile.json");
+    assert.ok(eventsLog.length > 0);
     assert.equal(
-      await fs.readFile(path.resolve(workspaceRoot, "log", "run", "octocat", "demo", "opened", "evt-1", "stdout.log"), "utf8"),
+      await fs.readFile(path.resolve(eventScope, "stdout.log"), "utf8"),
       "",
     );
     assert.equal(
-      await fs.readFile(path.resolve(workspaceRoot, "log", "run", "octocat", "demo", "opened", "evt-1", "stderr.log"), "utf8"),
+      await fs.readFile(path.resolve(eventScope, "stderr.log"), "utf8"),
       "",
     );
   } finally {

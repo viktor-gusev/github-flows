@@ -52,23 +52,35 @@ function requireStringRecord(value, field) {
 export default class Github_Flows_Execution_Launch_Contract_Factory {
   /**
    * @param {object} deps
-   * @param {{ logComponentAction?: (entry: {
-   *   action: string,
-   *   component: string,
-   *   details?: unknown,
-   *   message: string
-   * }) => void }} [deps.logger]
+   * @param {Github_Flows_Web_Handler_Webhook_EventLog} deps.eventLog
+   * @param {{
+   *   logComponentAction?: (entry: {
+   *     action: string,
+   *     component: string,
+   *     details?: unknown,
+   *     message: string
+   *   }) => void,
+   *   logEventProcessing?: (entry: {
+   *     action: string,
+   *     component: string,
+   *     details?: unknown,
+   *     loggingContext?: Github_Flows_Event_Logging_Context__Data,
+   *     message: string,
+   *     stage?: string,
+   *   }) => Promise<void>,
+   * }} [deps.logger]
    */
-  constructor({ logger }) {
+  constructor({ eventLog, logger }) {
     /**
      * @param {{
+     *   loggingContext?: Github_Flows_Event_Logging_Context__Data,
      *   prompt: string,
      *   selectedProfile: Github_Flows_Execution_Profile__Selected,
      *   workspace: Github_Flows_Execution_Workspace
      * }} params
      * @returns {Github_Flows_Execution_Launch_Contract}
      */
-    this.create = function ({ prompt, selectedProfile, workspace }) {
+    this.create = function ({ loggingContext, prompt, selectedProfile, workspace }) {
       const execution = asRecord(selectedProfile.execution);
       const handler = asRecord(execution.handler);
       const runtime = asRecord(execution.runtime);
@@ -102,6 +114,18 @@ export default class Github_Flows_Execution_Launch_Contract_Factory {
         },
         message: `Created launch contract for profile ${selectedProfile.id}.`,
       });
+      void eventLog?.logEventProcessing?.({
+        action: "launch-contract-create",
+        component: "Github_Flows_Execution_Launch_Contract_Factory",
+        details: {
+          profileId: selectedProfile.id,
+          type: contract.type,
+          workspacePath: contract.environment.workspacePath,
+        },
+        loggingContext,
+        message: `Created launch contract for profile ${selectedProfile.id}.`,
+        stage: "execution-preparation",
+      });
 
       return contract;
     };
@@ -110,6 +134,7 @@ export default class Github_Flows_Execution_Launch_Contract_Factory {
 
 export const __deps__ = Object.freeze({
   default: Object.freeze({
+    eventLog: "Github_Flows_Web_Handler_Webhook_EventLog$",
     logger: "Github_Flows_Logger$",
   }),
 });

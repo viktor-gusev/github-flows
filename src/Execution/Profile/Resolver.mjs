@@ -227,10 +227,11 @@ export default class Github_Flows_Execution_Profile_Resolver {
     /**
      * @param {{
      *   headers?: Record<string, string | string[] | undefined>,
+     *   loggingContext?: Github_Flows_Event_Logging_Context__Data,
      *   payload: unknown
      * }} params
      */
-    this.resolveByGithubEvent = async function ({ headers = {}, payload }) {
+    this.resolveByGithubEvent = async function ({ headers = {}, loggingContext, payload }) {
       const eventAttributes = buildEventAttributes({ headers, payload });
       const candidates = await buildCandidates();
       const matches = candidates
@@ -250,6 +251,7 @@ export default class Github_Flows_Execution_Profile_Resolver {
         details: {
           applicableBasis: effective?.profile.trigger ?? null,
           eventAttributes,
+          eventId: loggingContext?.eventId,
           matchedCandidates: matches.map((item) => ({
             id: item.id,
             orderKey: item.orderKey,
