@@ -9,6 +9,7 @@ const HTTPS_PREFIX = "https://";
 const EVENT_LOG_FILENAME = "events.log";
 const EVENT_SNAPSHOT_FILENAME = "event.json";
 const EFFECTIVE_PROFILE_FILENAME = "effective-profile.json";
+const PROMPT_BINDINGS_FILENAME = "prompt-bindings.json";
 
 /**
  * @param {unknown} value
@@ -193,6 +194,21 @@ export default class Github_Flows_Web_Handler_Webhook_EventLog {
       await fsPromises.writeFile(
         pathModule.join(loggingContext.logDirectory, EFFECTIVE_PROFILE_FILENAME),
         `${JSON.stringify(cloneValue(selectedProfile), null, 2)}\n`,
+        "utf8",
+      );
+    };
+
+    /**
+     * @param {{
+     *   bindings: Record<string, string | number | boolean>,
+     *   loggingContext: Github_Flows_Event_Logging_Context__Data,
+     * }} params
+     */
+    this.persistPromptBindings = async function ({ bindings, loggingContext }) {
+      await ensureDirectory(loggingContext);
+      await fsPromises.writeFile(
+        pathModule.join(loggingContext.logDirectory, PROMPT_BINDINGS_FILENAME),
+        `${JSON.stringify(cloneValue(bindings), null, 2)}\n`,
         "utf8",
       );
     };

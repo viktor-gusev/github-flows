@@ -190,6 +190,9 @@ test("webhook ingress is served on the static GitHub webhook path", { timeout: 5
           command: ["node"],
           args: [],
           promptRef: "default.md",
+          promptVariables: {
+            ISSUE_TITLE: "event.issue.title",
+          },
         },
         runtime: {
           type: "docker",
@@ -201,12 +204,15 @@ test("webhook ingress is served on the static GitHub webhook path", { timeout: 5
         },
       },
     });
-    await writePrompt(workspaceRoot, path.join("issues", "default.md"), "Repository {{repo}} prepared at {{workspacePath}}.");
+    await writePrompt(workspaceRoot, path.join("issues", "default.md"), "Issue {{ISSUE_TITLE}} for {{repo}} prepared at {{workspacePath}}.");
     await server.start();
     const address = await waitForAddress(server);
     const validBody = JSON.stringify({
       action: "opened",
       eventId: "evt-1",
+      issue: {
+        title: "Integration issue",
+      },
       repository: {
         id: 1,
         name: "demo",
@@ -260,6 +266,7 @@ test("webhook ingress is served on the static GitHub webhook path", { timeout: 5
     const eventScope = path.resolve(workspaceRoot, "log", "run", "octocat", "demo", "issues", "evt-1");
     const eventSnapshot = JSON.parse(await fs.readFile(path.resolve(eventScope, "event.json"), "utf8"));
     const effectiveProfile = JSON.parse(await fs.readFile(path.resolve(eventScope, "effective-profile.json"), "utf8"));
+    const promptBindings = JSON.parse(await fs.readFile(path.resolve(eventScope, "prompt-bindings.json"), "utf8"));
     const eventsLog = (await fs.readFile(path.resolve(eventScope, "events.log"), "utf8"))
       .trim()
       .split("\n")
@@ -268,6 +275,9 @@ test("webhook ingress is served on the static GitHub webhook path", { timeout: 5
     assert.equal(eventSnapshot.body.eventId, "evt-1");
     assert.equal(eventSnapshot.headers["x-github-event"], "issues");
     assert.equal(effectiveProfile.id, "issues/profile.json");
+    assert.deepEqual(promptBindings, {
+      ISSUE_TITLE: "Integration issue",
+    });
     assert.ok(eventsLog.length > 0);
     assert.equal(
       await fs.readFile(path.resolve(eventScope, "stdout.log"), "utf8"),

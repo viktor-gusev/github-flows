@@ -53,8 +53,13 @@ export default class Github_Flows_Execution_Start_Coordinator {
       });
 
       const workspace = await executionWorkspacePreparer.prepareByGithubEvent({ event, loggingContext });
-      const prompt = await executionPromptMaterializer.materialize({ event, loggingContext, selectedProfile, workspace });
-      const launchContract = executionLaunchContractFactory.create({ loggingContext, prompt, selectedProfile, workspace });
+      const preparedPrompt = await executionPromptMaterializer.materialize({ event, loggingContext, selectedProfile, workspace });
+      const launchContract = executionLaunchContractFactory.create({
+        loggingContext,
+        prompt: preparedPrompt.prompt,
+        selectedProfile,
+        workspace,
+      });
 
       logger?.logComponentAction?.({
         component: "Github_Flows_Execution_Start_Coordinator",

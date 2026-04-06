@@ -15,6 +15,10 @@ function requireString(value, field) {
   return value;
 }
 
+function isScalarValue(value) {
+  return ["string", "number", "boolean"].includes(typeof value);
+}
+
 function resolvePathValue(source, pathExpression) {
   const segments = pathExpression.split(".").filter((segment) => segment.length > 0);
   let current = source;
@@ -25,6 +29,50 @@ function resolvePathValue(source, pathExpression) {
     current = /** @type {Record<string, unknown>} */ (current)[segment];
   }
   return current;
+}
+
+function buildWorkspaceValueMap(workspace) {
+  return {
+    eventId: workspace.eventId,
+    eventType: workspace.eventType,
+    githubRepoId: workspace.githubRepoId,
+    owner: workspace.owner,
+    repo: workspace.repo,
+    repoPath: workspace.repoPath,
+    repositoryCachePath: workspace.repositoryCachePath,
+    workspacePath: workspace.workspacePath,
+    workspaceRoot: workspace.workspaceRoot,
+  };
+}
+
+function resolvePromptBindings({ event, selectedProfile, workspace }) {
+  const handler = asRecord(asRecord(selectedProfile.execution).handler);
+  const configuredBindings = asRecord(handler.promptVariables);
+  const sources = {
+    event: asRecord(event),
+    workspace: buildWorkspaceValueMap(workspace),
+  };
+  const resolved = {};
+
+  for (const [variableName, sourcePath] of Object.entries(configuredBindings)) {
+    if ((typeof variableName !== "string") || variableName.length === 0) {
+      throw new Error("Prompt variable name must be a non-empty string.");
+    }
+    if ((typeof sourcePath !== "string") || sourcePath.length === 0) {
+      throw new Error(`Prompt binding source path must be a non-empty string: ${variableName}`);
+    }
+    const [root] = sourcePath.split(".", 1);
+    if ((root !== "event") && (root !== "workspace")) {
+      throw new Error(`Unsupported prompt binding source path: ${sourcePath}`);
+    }
+    const value = resolvePathValue(sources, sourcePath);
+    if (!isScalarValue(value)) {
+      throw new Error(`Unable to resolve prompt binding to exactly one value: ${variableName} <- ${sourcePath}`);
+    }
+    resolved[variableName] = value;
+  }
+
+  return /** @type {Record<string, string | number | boolean>} */ (resolved);
 }
 
 function materializePlaceholders(template, context) {
@@ -73,7 +121,7 @@ export default class Github_Flows_Execution_Preparation_Prompt_Materializer {
      *   selectedProfile: Github_Flows_Execution_Profile__Selected,
      *   workspace: Github_Flows_Execution_Workspace
      * }} params
-     * @returns {Promise<string>}
+     * @returns {Promise<Github_Flows_Execution_Preparation_Prompt_Materializer__Result>}
      */
     this.materialize = async function ({ event, loggingContext, selectedProfile, workspace }) {
       const execution = asRecord(selectedProfile.execution);
@@ -83,6 +131,7 @@ export default class Github_Flows_Execution_Preparation_Prompt_Materializer {
       const cfgRoot = pathModule.resolve(runtime.workspaceRoot, "cfg");
       const templatePath = pathModule.resolve(cfgRoot, promptRefBaseDir, promptRef);
       const relativeTemplatePath = pathModule.relative(cfgRoot, templatePath);
+      const promptBindings = resolvePromptBindings({ event, selectedProfile, workspace });
 
       if (
         relativeTemplatePath.length === 0
@@ -94,22 +143,22 @@ export default class Github_Flows_Execution_Preparation_Prompt_Materializer {
 
       const template = await fsPromises.readFile(templatePath, "utf8");
       const prompt = materializePlaceholders(template, {
-        event: asRecord(event),
-        eventId: workspace.eventId,
-        eventType: workspace.eventType,
-        githubRepoId: workspace.githubRepoId,
-        owner: workspace.owner,
-        repo: workspace.repo,
-        repoPath: workspace.repoPath,
-        repositoryCachePath: workspace.repositoryCachePath,
-        workspacePath: workspace.workspacePath,
-        workspaceRoot: workspace.workspaceRoot,
+        ...buildWorkspaceValueMap(workspace),
+        ...promptBindings,
       });
+
+      if (loggingContext && Object.keys(promptBindings).length > 0) {
+        await eventLog?.persistPromptBindings?.({
+          bindings: promptBindings,
+          loggingContext,
+        });
+      }
 
       logger?.logComponentAction?.({
         component: "Github_Flows_Execution_Preparation_Prompt_Materializer",
         action: "prompt-materialize",
         details: {
+          promptBindings,
           profileId: selectedProfile.id,
           promptRef,
           templatePath,
@@ -120,6 +169,7 @@ export default class Github_Flows_Execution_Preparation_Prompt_Materializer {
         action: "prompt-materialize",
         component: "Github_Flows_Execution_Preparation_Prompt_Materializer",
         details: {
+          promptBindings,
           profileId: selectedProfile.id,
           promptRef,
           templatePath,
@@ -129,7 +179,7 @@ export default class Github_Flows_Execution_Preparation_Prompt_Materializer {
         stage: "execution-preparation",
       });
 
-      return prompt;
+      return { prompt, promptBindings };
     };
   }
 }

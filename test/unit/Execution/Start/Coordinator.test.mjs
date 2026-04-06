@@ -37,7 +37,7 @@ test("execution start coordinator prepares workspace and materializes launch con
     executionPromptMaterializer: {
       async materialize(entry) {
         calls.push({ method: "materialize", entry });
-        return "Solve the task.";
+        return { prompt: "Solve the task.", promptBindings: { PR_TITLE: "Fix bug" } };
       },
     },
     executionRuntimeDocker: {
@@ -277,7 +277,7 @@ test("execution start coordinator requires profile runtime image", async () => {
     },
     executionPromptMaterializer: {
       async materialize() {
-        return "Solve the task.";
+        return { prompt: "Solve the task.", promptBindings: {} };
       },
     },
     executionRuntimeDocker: {

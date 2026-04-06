@@ -226,6 +226,12 @@ test("event logger persists archival artifacts for admitted events", async () =>
         },
       },
     });
+    await logger.persistPromptBindings({
+      bindings: {
+        ISSUE_TITLE: "Fix race condition",
+      },
+      loggingContext,
+    });
     await logger.logDecisionTrace({
       decision: "start",
       decisionBasis: { selectedProfile: { id: "issues/profile.json" } },
@@ -235,6 +241,7 @@ test("event logger persists archival artifacts for admitted events", async () =>
 
     const eventJson = JSON.parse(await fs.readFile(path.join(loggingContext.logDirectory, "event.json"), "utf8"));
     const effectiveProfileJson = JSON.parse(await fs.readFile(path.join(loggingContext.logDirectory, "effective-profile.json"), "utf8"));
+    const promptBindingsJson = JSON.parse(await fs.readFile(path.join(loggingContext.logDirectory, "prompt-bindings.json"), "utf8"));
     const eventsLog = (await fs.readFile(path.join(loggingContext.logDirectory, "events.log"), "utf8"))
       .trim()
       .split("\n")
@@ -254,6 +261,9 @@ test("event logger persists archival artifacts for admitted events", async () =>
       },
     });
     assert.equal(effectiveProfileJson.id, "issues/profile.json");
+    assert.deepEqual(promptBindingsJson, {
+      ISSUE_TITLE: "Fix race condition",
+    });
     assert.equal(eventsLog.length, 2);
     assert.equal(eventsLog[0].action, "admitted-event-snapshot");
     assert.equal(eventsLog[1].stage, "decision-trace");

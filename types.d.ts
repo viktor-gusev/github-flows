@@ -72,6 +72,7 @@ declare global {
       command: string[],
       args: string[],
       promptRef?: string,
+      promptVariables?: Record<string, string>,
     },
     runtime: {
       dockerArgs?: string[],
@@ -130,6 +131,11 @@ declare global {
     stdout: string,
   };
   type Github_Flows_Execution_Launch_Contract_Factory = import("./src/Execution/Launch/Contract/Factory.mjs").default;
+  type Github_Flows_Execution_Preparation_Prompt_Materializer__Bindings = Record<string, string | number | boolean>;
+  type Github_Flows_Execution_Preparation_Prompt_Materializer__Result = {
+    prompt: string,
+    promptBindings: Github_Flows_Execution_Preparation_Prompt_Materializer__Bindings,
+  };
   type Github_Flows_Execution_Preparation_Prompt_Materializer = import("./src/Execution/Preparation/Prompt/Materializer.mjs").default;
   type Github_Flows_Execution_Runtime_Docker = import("./src/Execution/Runtime/Docker.mjs").default;
   type Github_Flows_Execution_Workspace_Preparer = import("./src/Execution/Workspace/Preparer.mjs").default;
