@@ -3,6 +3,10 @@
  */
 const PROFILE_FILENAME = "profile.json";
 
+/**
+ * @param {unknown} value
+ * @returns {Record<string, unknown>}
+ */
 function asRecord(value) {
   if (value && (typeof value === "object") && !Array.isArray(value)) {
     return /** @type {Record<string, unknown>} */ (value);
@@ -10,6 +14,10 @@ function asRecord(value) {
   return {};
 }
 
+/**
+ * @param {unknown} value
+ * @returns {unknown}
+ */
 function cloneValue(value) {
   if (Array.isArray(value)) {
     return value.map(cloneValue);
@@ -22,6 +30,11 @@ function cloneValue(value) {
   return value;
 }
 
+/**
+ * @param {unknown} base
+ * @param {unknown} override
+ * @returns {Record<string, unknown>}
+ */
 function deepMerge(base, override) {
   const left = asRecord(base);
   const right = asRecord(override);
@@ -47,6 +60,15 @@ function deepMerge(base, override) {
   return merged;
 }
 
+/**
+ * @param {{ trigger?: unknown, execution?: unknown, directory?: string }[]} fragments
+ * @returns {{
+ *   execution: Record<string, unknown>,
+ *   promptRefBaseDir: string | undefined,
+ *   trigger: Record<string, unknown>,
+ *   type: string | undefined
+ * }}
+ */
 function mergeCandidateFragments(fragments) {
   return fragments.reduce((result, fragment) => {
     const trigger = {
@@ -62,10 +84,18 @@ function mergeCandidateFragments(fragments) {
   }, { trigger: {}, execution: {}, type: undefined, promptRefBaseDir: undefined });
 }
 
+/**
+ * @param {string} pathValue
+ * @returns {string}
+ */
 function normalizeRelativePath(pathValue) {
   return pathValue.length === 0 ? "." : pathValue.split("\\").join("/");
 }
 
+/**
+ * @param {string} relativePath
+ * @returns {string}
+ */
 function dirnameOf(relativePath) {
   if (relativePath === ".") return ".";
   const normalized = normalizeRelativePath(relativePath);
@@ -73,14 +103,31 @@ function dirnameOf(relativePath) {
   return lastSlash === -1 ? "." : normalized.slice(0, lastSlash);
 }
 
+/**
+ * @param {string} relativeDir
+ * @returns {string}
+ */
 function toCandidateId(relativeDir) {
   return normalizeRelativePath(relativeDir === "." ? PROFILE_FILENAME : `${relativeDir}/${PROFILE_FILENAME}`);
 }
 
+/**
+ * @param {typeof import("node:path")} pathModule
+ * @param {string} cfgRoot
+ * @param {string} relativeDir
+ * @returns {string}
+ */
 function toCandidateDirectoryPath(pathModule, cfgRoot, relativeDir) {
   return normalizeRelativePath(pathModule.resolve(cfgRoot, relativeDir === "." ? "" : relativeDir));
 }
 
+/**
+ * @param {{
+ *   headers: Record<string, string | string[] | undefined>,
+ *   payload: unknown
+ * }} params
+ * @returns {{ action: string | undefined, event: string | undefined, repository: string | undefined }}
+ */
 function buildEventAttributes({ headers, payload }) {
   const body = asRecord(payload);
   const repository = asRecord(body.repository);
@@ -98,10 +145,19 @@ function buildEventAttributes({ headers, payload }) {
   };
 }
 
+/**
+ * @param {Record<string, unknown>} trigger
+ * @returns {number}
+ */
 function computeSpecificity(trigger) {
   return Object.values(trigger).filter((value) => value !== undefined).length;
 }
 
+/**
+ * @param {Record<string, unknown>} trigger
+ * @param {Record<string, unknown>} attributes
+ * @returns {boolean}
+ */
 function matchesTrigger(trigger, attributes) {
   return Object.entries(trigger).every(([key, value]) => attributes[key] === value);
 }
@@ -120,10 +176,21 @@ export default class Github_Flows_Execution_Profile_Resolver {
    * @param {Github_Flows_Config_Runtime} deps.runtime
    */
   constructor({ fsPromises, logger, pathModule, runtime }) {
+    /**
+     * @returns {string}
+     */
     const resolveCfgRoot = function () {
       return pathModule.resolve(runtime.workspaceRoot, "cfg");
     };
 
+    /**
+     * @param {string} absolutePath
+     * @returns {Promise<{
+     *   execution: Record<string, unknown>,
+     *   directory: string,
+     *   trigger: Record<string, unknown>
+     * }>}
+     */
     const readFragment = async function (absolutePath) {
       const content = await fsPromises.readFile(absolutePath, "utf8");
       const parsed = JSON.parse(content);
@@ -134,10 +201,21 @@ export default class Github_Flows_Execution_Profile_Resolver {
       };
     };
 
+    /**
+     * @returns {Promise<{
+     *   fragments: Map<string, { absolutePath: string, directory: string }>,
+     *   root: string
+     * }>}
+     */
     const scanFragments = async function () {
       const root = resolveCfgRoot();
       const discovered = new Map();
 
+      /**
+       * @param {string} directory
+       * @param {string} [relativeDir]
+       * @returns {Promise<void>}
+       */
       const walk = async function (directory, relativeDir = ".") {
         let entries;
         try {
@@ -166,6 +244,20 @@ export default class Github_Flows_Execution_Profile_Resolver {
       return { fragments: discovered, root };
     };
 
+    /**
+     * @returns {Promise<{
+     *   filesystemPath: string,
+     *   id: string,
+     *   orderKey: string,
+     *   fragments: string[],
+     *   profile: {
+     *     execution: Record<string, unknown>,
+     *     promptRefBaseDir: string | undefined,
+     *     trigger: Record<string, unknown>,
+     *     type: string | undefined
+     *   }
+     * }[]>}
+     */
     const buildCandidates = async function () {
       const { fragments, root } = await scanFragments();
       const fragmentDirectories = Array.from(fragments.keys()).sort();
@@ -226,13 +318,18 @@ export default class Github_Flows_Execution_Profile_Resolver {
 
     /**
      * @param {{
-     *   headers?: Record<string, string | string[] | undefined>,
-     *   loggingContext?: Github_Flows_Event_Logging_Context__Data,
-     *   payload: unknown
+     *   eventAttributes: Record<string, unknown>,
+     *   loggingContext?: Github_Flows_Event_Logging_Context__Data
      * }} params
+     * @returns {Promise<{
+     *   applicabilityBasis: Record<string, unknown> | null,
+     *   candidates: { id: string, orderKey: string, trigger: Record<string, unknown> }[],
+     *   eventAttributes: Record<string, unknown>,
+     *   matchedCandidates: { id: string, orderKey: string, specificity: number, trigger: Record<string, unknown> }[],
+     *   selectedProfile: Github_Flows_Execution_Profile__Selected | null
+     * }>}
      */
-    this.resolveByGithubEvent = async function ({ headers = {}, loggingContext, payload }) {
-      const eventAttributes = buildEventAttributes({ headers, payload });
+    this.resolveByEventAttributes = async function ({ eventAttributes, loggingContext }) {
       const candidates = await buildCandidates();
       const matches = candidates
         .filter((candidate) => matchesTrigger(candidate.profile.trigger, eventAttributes))
@@ -296,6 +393,28 @@ export default class Github_Flows_Execution_Profile_Resolver {
             }
           : null,
       };
+    };
+
+    /**
+     * Backward-compatible helper for callers that still pass the raw GitHub event.
+     *
+     * @param {{
+     *   eventAttributes?: Record<string, unknown>,
+     *   headers?: Record<string, string | string[] | undefined>,
+     *   loggingContext?: Github_Flows_Event_Logging_Context__Data,
+     *   payload?: unknown
+     * }} params
+     * @returns {Promise<{
+     *   applicabilityBasis: Record<string, unknown> | null,
+     *   candidates: { id: string, orderKey: string, trigger: Record<string, unknown> }[],
+     *   eventAttributes: Record<string, unknown>,
+     *   matchedCandidates: { id: string, orderKey: string, specificity: number, trigger: Record<string, unknown> }[],
+     *   selectedProfile: Github_Flows_Execution_Profile__Selected | null
+     * }>}
+     */
+    this.resolveByGithubEvent = async function ({ eventAttributes, headers = {}, loggingContext, payload }) {
+      const resolvedAttributes = eventAttributes ?? buildEventAttributes({ headers, payload });
+      return this.resolveByEventAttributes({ eventAttributes: resolvedAttributes, loggingContext });
     };
   }
 }

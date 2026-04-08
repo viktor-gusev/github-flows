@@ -6,6 +6,27 @@ declare global {
     owner: string,
     repo: string,
   };
+  type Github_Flows_Event_Attribute__Value = null | boolean | number | string;
+  type Github_Flows_Event_Attribute__Set = Record<string, Github_Flows_Event_Attribute__Value>;
+  type Github_Flows_Event_Attribute_Provider__Input = {
+    headers?: Record<string, string | string[] | undefined>,
+    loggingContext?: Github_Flows_Event_Logging_Context__Data,
+    payload: unknown,
+  };
+  type Github_Flows_Event_Attribute_Provider = {
+    getAttributes(input: Github_Flows_Event_Attribute_Provider__Input):
+      Promise<Partial<Github_Flows_Event_Attribute__Set> | undefined>
+      | Partial<Github_Flows_Event_Attribute__Set>
+      | undefined,
+  };
+  type Github_Flows_Event_Attribute_Provider_Holder = import("./src/Event/Attribute/Provider/Holder.mjs").default;
+  type Github_Flows_Event_Attribute_Resolver__Result = {
+    additionalAttributes: Github_Flows_Event_Attribute__Set,
+    baseAttributes: Record<string, string | undefined>,
+    eventAttributes: Record<string, Github_Flows_Event_Attribute__Value | undefined>,
+    providerUsed: boolean,
+  };
+  type Github_Flows_Event_Attribute_Resolver = import("./src/Event/Attribute/Resolver.mjs").default;
   type Github_Flows_Event_Logging_Context = import("./src/Event/Logging/Context.mjs").default;
   type Github_Flows_Web_Handler_Webhook_EventLog__Value =
     | null

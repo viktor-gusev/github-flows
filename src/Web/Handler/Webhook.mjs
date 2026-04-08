@@ -44,14 +44,18 @@ function parseJsonBody(body) {
 export default class Github_Flows_Web_Handler_Webhook {
   /**
    * @param {object} deps
- * @param {Github_Flows_Web_Handler_Webhook_EventLog} deps.eventLog
- * @param {Github_Flows_Event_Logging_Context} deps.eventLoggingContext
- * @param {Github_Flows_Execution_Profile_Resolver} deps.executionProfileResolver
- * @param {Github_Flows_Execution_Start_Coordinator} deps.executionStartCoordinator
- * @param {Github_Flows_Config_Runtime} deps.runtime
- * @param {Github_Flows_Web_Handler_Webhook_Signature} deps.signature
- */
-  constructor({ eventLog, eventLoggingContext, executionProfileResolver, executionStartCoordinator, runtime, signature }) {
+   * @param {Github_Flows_Event_Attribute_Resolver} deps.eventAttributeResolver
+   * @param {Github_Flows_Web_Handler_Webhook_EventLog} deps.eventLog
+   * @param {Github_Flows_Event_Logging_Context} deps.eventLoggingContext
+   * @param {Github_Flows_Execution_Profile_Resolver} deps.executionProfileResolver
+   * @param {Github_Flows_Execution_Start_Coordinator} deps.executionStartCoordinator
+   * @param {Github_Flows_Config_Runtime} deps.runtime
+   * @param {Github_Flows_Web_Handler_Webhook_Signature} deps.signature
+   */
+  constructor({ eventAttributeResolver, eventLog, eventLoggingContext, executionProfileResolver, executionStartCoordinator, runtime, signature }) {
+    /**
+     * @returns {Github_Flows_Web_Handler_Webhook__Info}
+     */
     this.getRegistrationInfo = function () {
       return {
         name: "Github_Flows_Web_Handler_Webhook",
@@ -61,6 +65,10 @@ export default class Github_Flows_Web_Handler_Webhook {
       };
     };
 
+    /**
+     * @param {Fl32_Web_Back_Dto_RequestContext} context
+     * @returns {Promise<void>}
+     */
     this.handle = async function (context) {
       const { request, response } = context;
       const secret = runtime.webhookSecret;
@@ -123,16 +131,36 @@ export default class Github_Flows_Web_Handler_Webhook {
           stage: "admission",
         });
 
-        const resolution = await executionProfileResolver.resolveByGithubEvent({
+        const attributeResolution = await eventAttributeResolver.resolveByGithubEvent({
           headers: request.headers,
           loggingContext,
           payload,
+        });
+        await eventLog.logEventProcessing({
+          action: "resolve-event-attributes",
+          component: "Github_Flows_Event_Attribute_Resolver",
+          details: {
+            additionalAttributes: attributeResolution.additionalAttributes,
+            baseAttributes: attributeResolution.baseAttributes,
+            eventAttributes: attributeResolution.eventAttributes,
+            providerUsed: attributeResolution.providerUsed,
+          },
+          loggingContext,
+          message: attributeResolution.providerUsed
+            ? `Resolved additional event attributes for admitted event ${loggingContext.eventId}.`
+            : `Resolved base event attributes for admitted event ${loggingContext.eventId}.`,
+          stage: "attribute-enrichment",
+        });
+
+        const resolution = await executionProfileResolver.resolveByEventAttributes({
+          eventAttributes: attributeResolution.eventAttributes,
+          loggingContext,
         });
         const selectedProfile = resolution.selectedProfile;
 
         await eventLog.logDecisionTrace({
           loggingContext,
-          resolutionInputs: resolution.eventAttributes,
+          resolutionInputs: attributeResolution.eventAttributes,
           decisionBasis: {
             applicabilityBasis: resolution.applicabilityBasis,
             matchedCandidates: resolution.matchedCandidates,
@@ -187,6 +215,7 @@ export default class Github_Flows_Web_Handler_Webhook {
 
 export const __deps__ = Object.freeze({
   default: Object.freeze({
+    eventAttributeResolver: "Github_Flows_Event_Attribute_Resolver$",
     eventLog: "Github_Flows_Web_Handler_Webhook_EventLog$",
     eventLoggingContext: "Github_Flows_Event_Logging_Context$",
     executionProfileResolver: "Github_Flows_Execution_Profile_Resolver$",
