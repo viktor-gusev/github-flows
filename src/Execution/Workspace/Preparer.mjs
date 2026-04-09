@@ -1,5 +1,7 @@
+// @ts-check
 /**
- * Prepares isolated execution workspaces for containerized agent runs.
+ * @namespace Github_Flows_Execution_Workspace_Preparer
+ * @description Prepares isolated execution workspaces for containerized agent runs.
  */
 
 /* Executes external command through injected child-process module. */

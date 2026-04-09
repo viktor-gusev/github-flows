@@ -1,8 +1,7 @@
+// @ts-check
 /**
- * Host-facing web server component.
- *
- * Registers the GitHub webhook handler with the TeqFW pipeline before the
- * transport server starts listening.
+ * @namespace Github_Flows_Web_Server
+ * @description Host-facing web server component. Registers the GitHub webhook handler with the TeqFW pipeline before the transport server starts listening.
  */
 export default class Github_Flows_Web_Server {
   /**

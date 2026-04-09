@@ -1,5 +1,7 @@
+// @ts-check
 /**
- * Runtime configuration data for github-flows.
+ * @namespace Github_Flows_Config_Runtime
+ * @description Runtime configuration data and factory for github-flows.
  */
 export class Data {
   /** @type {string} */
@@ -22,7 +24,8 @@ export class Data {
 const cfg = new Data();
 
 /**
- * Runtime configuration factory.
+ * @namespace Github_Flows_Config_Runtime__Factory
+ * @description Runtime configuration factory.
  */
 export class Factory {
   /**
@@ -116,11 +119,8 @@ export default class Wrapper {
 }
 
 export const __deps__ = Object.freeze({
-  default: Object.freeze({}),
+  default: {},
   Factory: Object.freeze({
     webConfigFactory: "Fl32_Web_Back_Config_Runtime__Factory$",
   }),
 });
-
-Object.freeze(Data.prototype);
-Object.freeze(Factory.prototype);

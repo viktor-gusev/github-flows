@@ -1,5 +1,7 @@
+// @ts-check
 /**
- * Materializes prompt templates into resolved prompt text during execution preparation.
+ * @namespace Github_Flows_Execution_Preparation_Prompt_Materializer
+ * @description Materializes prompt templates into resolved prompt text during execution preparation.
  */
 function asRecord(value) {
   if (value && (typeof value === "object") && !Array.isArray(value)) {

@@ -1,15 +1,19 @@
+// @ts-check
 /**
- * Package-level structured logger.
+ * @namespace Github_Flows_Logger
+ * @description Package-level structured logger.
  */
 export default class Github_Flows_Logger {
   /**
-   * @param {object} [deps]
-   * @param {{ info?: (entry: unknown) => void }} [deps.sink]
+   * @param {{ info?: (entry: unknown) => void } | { sink?: { info?: (entry: unknown) => void } } | undefined} sink
    */
-  constructor({ sink } = {}) {
+  constructor({ sink }) {
+    const actualSink = sink && (typeof sink === "object") && ("info" in sink)
+      ? sink
+      : sink?.sink;
     const emit = function (entry) {
-      if (sink?.info) {
-        sink.info(entry);
+      if (actualSink?.info) {
+        actualSink.info(entry);
       } else {
         console.info(JSON.stringify(entry, null, 2));
       }
@@ -44,5 +48,7 @@ export default class Github_Flows_Logger {
 }
 
 export const __deps__ = Object.freeze({
-  default: Object.freeze({}),
+  default: Object.freeze({
+    sink: "Github_Flows_Logger_Sink$",
+  }),
 });

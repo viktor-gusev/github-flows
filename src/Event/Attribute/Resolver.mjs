@@ -1,6 +1,7 @@
+// @ts-check
 /**
- * Resolves the event attribute set used for profile matching, including
- * optional host-provided additional attributes.
+ * @namespace Github_Flows_Event_Attribute_Resolver
+ * @description Resolves the event attribute set used for profile matching, including optional host-provided additional attributes.
  */
 // Helper functions for attribute normalization.
 /**

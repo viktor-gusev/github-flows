@@ -1,5 +1,7 @@
+// @ts-check
 /**
- * Observational inbound event logger for GitHub webhook processing.
+ * @namespace Github_Flows_Web_Handler_Webhook_EventLog
+ * @description Observational inbound event logger for GitHub webhook processing.
  */
 const MAX_LOG_VALUE_LENGTH = 64;
 const REPLACEMENT = "...";

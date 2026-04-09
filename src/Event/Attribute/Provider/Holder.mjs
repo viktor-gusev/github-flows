@@ -1,5 +1,7 @@
+// @ts-check
 /**
- * Mutable holder for one optional host-provided event attribute provider.
+ * @namespace Github_Flows_Event_Attribute_Provider_Holder
+ * @description Mutable holder for one optional host-provided event attribute provider.
  */
 export default class Github_Flows_Event_Attribute_Provider_Holder {
   constructor() {
@@ -25,9 +27,3 @@ export default class Github_Flows_Event_Attribute_Provider_Holder {
     };
   }
 }
-
-export const __deps__ = Object.freeze({
-  default: Object.freeze({}),
-});
-
-Object.freeze(Github_Flows_Event_Attribute_Provider_Holder.prototype);

@@ -1,5 +1,7 @@
+// @ts-check
 /**
- * Scans cfg fragments and resolves one effective candidate profile for an event.
+ * @namespace Github_Flows_Execution_Profile_Resolver
+ * @description Scans cfg fragments and resolves one effective candidate profile for an event.
  */
 const PROFILE_FILENAME = "profile.json";
 

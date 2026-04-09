@@ -1,5 +1,7 @@
+// @ts-check
 /**
- * Builds event-scoped logging context for one admitted GitHub event.
+ * @namespace Github_Flows_Event_Logging_Context
+ * @description Builds event-scoped logging context for one admitted GitHub event.
  */
 const LOG_BRANCH = ["log", "run"];
 

@@ -1,6 +1,7 @@
+// @ts-check
 /**
- * Static HTTP path for GitHub webhook requests.
- * This is part of the public request contract, not runtime configuration.
+ * @namespace Github_Flows_Web_Handler_Webhook
+ * @description Static HTTP path for GitHub webhook requests. This is part of the public request contract, not runtime configuration.
  */
 const WEBHOOK_PATH = "/webhooks/github";
 const SIGNATURE_HEADER = "x-hub-signature-256";

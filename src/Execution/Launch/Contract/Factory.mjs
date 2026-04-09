@@ -1,5 +1,7 @@
+// @ts-check
 /**
- * Builds fully resolved launch contracts from explicit execution profile and workspace inputs.
+ * @namespace Github_Flows_Execution_Launch_Contract_Factory
+ * @description Builds fully resolved launch contracts from explicit execution profile and workspace inputs.
  */
 function asRecord(value) {
   if (value && (typeof value === "object") && !Array.isArray(value)) {

@@ -1,5 +1,7 @@
+// @ts-check
 /**
- * Coordinates execution preparation, launch-contract creation, and runtime dispatch.
+ * @namespace Github_Flows_Execution_Start_Coordinator
+ * @description Coordinates execution preparation, launch-contract creation, and runtime dispatch.
  */
 export default class Github_Flows_Execution_Start_Coordinator {
   /**

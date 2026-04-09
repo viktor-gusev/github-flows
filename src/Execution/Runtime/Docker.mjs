@@ -1,5 +1,7 @@
+// @ts-check
 /**
- * Runs one resolved launch contract inside an isolated Docker container.
+ * @namespace Github_Flows_Execution_Runtime_Docker
+ * @description Runs one resolved launch contract inside an isolated Docker container.
  */
 const CONTAINER_WORKSPACE_PATH = "/workspace";
 

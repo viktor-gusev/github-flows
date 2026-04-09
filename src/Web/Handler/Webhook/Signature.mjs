@@ -1,5 +1,7 @@
+// @ts-check
 /**
- * GitHub webhook signature validator.
+ * @namespace Github_Flows_Web_Handler_Webhook_Signature
+ * @description GitHub webhook signature validator.
  */
 const HEADER_PREFIX = "sha256=";
 const HEX_RADIX = 16;
@@ -70,7 +72,3 @@ export default class Github_Flows_Web_Handler_Webhook_Signature {
     };
   }
 }
-
-export const __deps__ = Object.freeze({
-  default: Object.freeze({}),
-});

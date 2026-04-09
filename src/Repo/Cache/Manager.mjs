@@ -1,5 +1,7 @@
+// @ts-check
 /**
- * Maintains shared local repository cache entries for GitHub repositories.
+ * @namespace Github_Flows_Repo_Cache_Manager
+ * @description Maintains shared local repository cache entries for GitHub repositories.
  */
 
 /* Executes external command through injected child-process module. */
