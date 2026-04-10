@@ -1,110 +1,76 @@
 # github-flows
 
-`@teqfw/github-flows` is a reusable TeqFW library for handling GitHub webhook events and starting agents from those events inside a host application.
+`@teqfw/github-flows` is a TeqFW library that exposes a fixed GitHub webhook ingress and starts at most one isolated execution for each admitted event.
 
-Current release: `0.1.0`.
+It is not a standalone application. The host application owns process lifecycle, runtime infrastructure, and startup orchestration.
 
-It is not a standalone executable application.
+If you want a ready-to-run web server application built on top of this package, see [github-flows-app](https://github.com/flancer32/github-flows-app). That application provides the runtime wrapper around this package and may add extra services or host-level behavior.
 
-## Public Components
+This package is the base functionality. Wrappers can extend it with additional runtime services, deployment behavior, or other host-specific features without changing the package boundary.
 
-- `Github_Flows_Config_Runtime` - runtime configuration provider.
-- `Github_Flows_Web_Server` - web server component started by the host.
+## Public Surface
 
-## Host Startup Flow
+- `Github_Flows_Config_Runtime` for package runtime configuration.
+- `Github_Flows_Event_Attribute_Provider_Holder` for one optional host-provided event-attribute provider.
+- `Github_Flows_Web_Server` for starting the HTTP ingress surface.
+- `Github_Flows_Web_Handler_Webhook` for the public webhook handler surface.
 
-The host application is responsible for bootstrap order:
+## Package Scope
 
-1. Create a runtime configuration DTO.
-2. Initialize `Github_Flows_Config_Runtime`.
-3. Resolve `Github_Flows_Web_Server` from the DI container.
-4. Start the web server explicitly.
+The package:
 
-The web server reads its configuration from the DI container after runtime configuration has been initialized.
+- accepts GitHub webhook requests only on `/webhooks/github`;
+- derives package-owned event attributes;
+- may ask the host for additional event attributes for the current admitted event;
+- resolves candidate profiles from `workspaceRoot/cfg/`;
+- selects zero or one effective execution profile;
+- delegates the permitted execution to the host runtime boundary.
+
+The package does not:
+
+- own deployment or container infrastructure;
+- own process lifecycle;
+- interpret task meaning;
+- orchestrate multiple executions;
+- maintain cross-event decision state.
+
+## Host Startup
+
+The host should initialize the package in this order:
+
+1. create the runtime configuration DTO;
+2. configure `Github_Flows_Config_Runtime`;
+3. optionally register one `Github_Flows_Event_Attribute_Provider`;
+4. resolve `Github_Flows_Web_Server`;
+5. start the web server.
 
 ## Runtime Configuration
 
-Runtime configuration parameters are documented in the code context at [ctx/docs/code/component/configuration/runtime.md](ctx/docs/code/component/configuration/runtime.md) and are expected to be initialized by the host before server startup.
+The runtime configuration is flat and uses these fields:
 
-The runtime DTO is flat and uses these fields:
+- `httpHost` - optional, defaults to `127.0.0.1`;
+- `httpPort` - optional, defaults to `3000`;
+- `workspaceRoot` - required;
+- `runtimeImage` - required;
+- `webhookSecret` - required.
 
-- `httpHost` - env: `HOST`, optional, default `127.0.0.1`
-- `httpPort` - env: `PORT`, optional, default `3000`
-- `workspaceRoot` - env: `WORKSPACE_ROOT`, required
-- `runtimeImage` - env: `RUNTIME_IMAGE`, required
-- `webhookSecret` - env: `WEBHOOK_SECRET`, required
+## Event Attribute Provider
 
-## GitHub Webhooks
+The optional host-provided provider must implement:
 
-To connect a GitHub repository to this package:
-
-1. In the repository settings, add a webhook.
-2. Set the payload URL to the host address exposed by the package, followed by `/webhooks/github`.
-3. Use `application/json` as the content type.
-4. Set a shared secret that matches `WEBHOOK_SECRET`; GitHub uses it to compute `X-Hub-Signature-256`.
-5. Send `POST` webhook deliveries to the fixed ingress path.
-
-The package accepts webhook requests only on `/webhooks/github`. Requests to other paths are not treated as webhook ingress.
-
-Example local check:
-
-```bash
-curl -i \
-  -X POST \
-  http://127.0.0.1:3000/webhooks/github \
-  -H 'Content-Type: application/json' \
-  -H 'x-hub-signature-256: sha256=replace-with-valid-hmac' \
-  -d '{"action":"opened"}'
+```js
+async getAttributes({ headers, loggingContext, payload })
 ```
 
-## TeqFW Model
+The provider returns additional attributes for the current admitted event only. It does not return execution permission.
 
-The package follows the TeqFW DI model:
+## Release Contents
 
-- components are published through namespaces
-- dependencies are resolved by the container
-- the package does not own the process lifecycle
-- the package does not define a standalone `start` entrypoint
+The npm package publishes:
 
-## Host Integration Example
-
-The example below shows a minimal TeqFW host application component that injects the public library components, initializes runtime configuration, and then starts the library web server.
-
-```javascript
-/**
- * Host application root component.
- */
-export default class App_Root {
-  /**
-   * @param {object} deps
-   * @param {Github_Flows_Config_Runtime} deps.appCfgRuntime
-   * @param {Github_Flows_Web_Server} deps.appWebServer
-   */
-  constructor({ appCfgRuntime, appWebServer }) {
-    this.start = function () {
-      appCfgRuntime.configure({
-        httpHost: "127.0.0.1",
-        httpPort: 3000,
-        workspaceRoot: "./var/work",
-        runtimeImage: "codex-agent",
-        webhookSecret: "replace-with-shared-secret",
-      });
-      appCfgRuntime.freeze();
-
-      return appWebServer.start();
-    };
-  }
-}
-
-export const __deps__ = Object.freeze({
-  appCfgRuntime: "Github_Flows_Config_Runtime$",
-  appWebServer: "Github_Flows_Web_Server$",
-});
-```
-
-In this example:
-
-- the host app component receives the library components through the constructor
-- the host initializes `Github_Flows_Config_Runtime` before server startup
-- the host starts `Github_Flows_Web_Server` explicitly
-- the library server reads its finalized configuration from the DI container
+- `src/`
+- `ai/`
+- `README.md`
+- `CHANGELOG.md`
+- `LICENSE`
+- `types.d.ts`

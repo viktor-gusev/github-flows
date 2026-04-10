@@ -1,6 +1,9 @@
 # Event Attribute Provider Example
 
-This example shows the preferred TeqFW-style path for registering one host-side `Github_Flows_Event_Attribute_Provider` during startup.
+- Path: `ai/examples/event-attribute-provider.md`
+- Version: `20260410`
+
+This example shows how a host application can register one optional `Github_Flows_Event_Attribute_Provider` during startup.
 
 ```js
 // App/Github/Attribute/Provider.mjs
@@ -67,14 +70,14 @@ export default class App_Github_Bootstrap {
 ```
 
 ```js
-// composition root
 const app = await container.get('App_Github_Bootstrap$');
 await app.execute();
 ```
 
-Consumer notes:
+Notes:
 
-- The host registers the provider once during startup.
-- The provider returns additional attributes only.
-- The package later uses those attributes during its own profile matching.
-- If no provider is registered, the package falls back to its base event attributes only.
+- register the provider once during startup;
+- return additional attributes only;
+- let the package handle profile matching and execution permission;
+- skip the provider entirely if the host does not need extra event attributes.
+

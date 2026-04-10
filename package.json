@@ -38,6 +38,7 @@
   ],
   "files": [
     "ai/",
+    "CHANGELOG.md",
     "src/",
     "LICENSE",
     "README.md",

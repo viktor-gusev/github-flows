@@ -1,36 +1,24 @@
 # AGENTS.md
 
-Version: 20260408
+- Path: `ai/AGENTS.md`
+- Version: `20260410`
 
 ## Package Purpose
 
-This directory provides the Agent Interface of `@teqfw/github-flows`. It contains a compact consumer-facing projection of the package intended for LLM agents and host applications that use the package as a dependency inside TeqFW systems.
+This directory contains the public agent interface for `@teqfw/github-flows`.
 
-The interface explains how external code should compose the package, how to register a host-provided `Github_Flows_Event_Attribute_Provider`, and which runtime boundaries belong to the package versus the host application.
-
-## TeqFW Usage Model
-
-`@teqfw/github-flows` is designed for TeqFW-style runtime composition with `@teqfw/di`.
-
-Dependencies should be linked through Canonical Dependency Codes and constructor injection rather than by manually wiring package internals. External code should treat the package as DI-managed infrastructure:
-
-- host modules declare dependencies through `__deps__`;
-- the container resolves `Github_Flows_*` identifiers at runtime;
-- the host initializes runtime configuration and optional extensions during startup;
-- the package receives GitHub webhook events through its fixed web handler and performs its own deterministic profile selection.
+The documents describe how an external agent or host application should use the package, what the public TeqFW components are, and where the package boundary ends.
 
 ## Reading Order
 
-Agents should read the documents in this directory in the following order:
+Read the documents in this order:
 
-1. `AGENTS.md` — overview of the agent interface and navigation.
-2. `overview.md` — package role, intended usage boundary, and main entry points.
-3. `abstractions.md` — core consumer-facing abstractions, including the event-attribute extension point.
-4. `rules.md` — mandatory usage constraints and invariants.
-5. `examples/event-attribute-provider.md` — minimal example of host-side provider registration.
+1. `overview.md` for the package role and usage boundary.
+2. `abstractions.md` for the public components and contracts.
+3. `rules.md` for mandatory usage constraints.
+4. `examples/event-attribute-provider.md` for a minimal host-side setup.
 
-## Interface Scope
+## Scope
 
-The documents in this directory define only the supported usage semantics relevant to package consumers. Behaviors not described here should be treated as undefined and should not be inferred from internal implementation details.
+This directory documents only the supported public surface. Internal implementation details, repository layout, and unrelated project notes are out of scope here.
 
-Deep package internals and repository organization are outside the preferred consumer interface unless a task explicitly requires them.
