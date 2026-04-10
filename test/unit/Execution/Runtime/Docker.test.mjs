@@ -140,9 +140,12 @@ test("docker runtime starts container from launch contract", async () => {
     assert.equal(logs[0].action, "docker-run-start");
     assert.equal(logs[1].archival, true);
     assert.equal(logs[1].action, "docker-run-start");
-    assert.equal(logs[2].action, "docker-run-complete");
+    assert.equal(logs[2].action, "runtime-container-started");
     assert.equal(logs[3].archival, true);
-    assert.equal(logs[3].action, "docker-run-complete");
+    assert.equal(logs[3].action, "runtime-container-started");
+    assert.equal(logs[4].action, "docker-run-complete");
+    assert.equal(logs[5].archival, true);
+    assert.equal(logs[5].action, "docker-run-complete");
     assert.equal(await fs.readFile(path.join(workspaceRoot, "log", "run", "octocat", "demo", "issues", "evt-1", "stdout.log"), "utf8"), "ok");
     assert.equal(await fs.readFile(path.join(workspaceRoot, "log", "run", "octocat", "demo", "issues", "evt-1", "stderr.log"), "utf8"), "warn");
     assert.deepEqual(observedStdout, ["ok"]);

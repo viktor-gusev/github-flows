@@ -19,6 +19,23 @@ export default class Github_Flows_Execution_Start_Coordinator {
    * }) => void }} [deps.logger]
    */
   constructor({ eventLog, executionLaunchContractFactory, executionPromptMaterializer, executionRuntimeDocker, executionWorkspacePreparer, logger }) {
+    const logStep = async function ({ action, details, loggingContext, message, stage }) {
+      logger?.logComponentAction?.({
+        component: "Github_Flows_Execution_Start_Coordinator",
+        action,
+        details,
+        message,
+      });
+      await eventLog.logEventProcessing({
+        action,
+        component: "Github_Flows_Execution_Start_Coordinator",
+        details,
+        loggingContext,
+        message,
+        stage,
+      });
+    };
+
     /**
      * @param {{
      *   event: unknown,
@@ -27,21 +44,8 @@ export default class Github_Flows_Execution_Start_Coordinator {
      * }} params
      */
     this.start = async function ({ event, loggingContext, selectedProfile }) {
-      logger?.logComponentAction?.({
-        component: "Github_Flows_Execution_Start_Coordinator",
-        action: "execution-start-decision",
-        details: {
-          selectedProfile: {
-            id: selectedProfile.id,
-            orderKey: selectedProfile.orderKey,
-            trigger: selectedProfile.trigger,
-          },
-        },
-        message: `Starting execution for profile ${selectedProfile.id}.`,
-      });
-      await eventLog.logEventProcessing({
-        action: "execution-start-decision",
-        component: "Github_Flows_Execution_Start_Coordinator",
+      await logStep({
+        action: "execution-start-requested",
         details: {
           selectedProfile: {
             id: selectedProfile.id,
@@ -50,11 +54,52 @@ export default class Github_Flows_Execution_Start_Coordinator {
           },
         },
         loggingContext,
-        message: `Starting execution for profile ${selectedProfile.id}.`,
+        message: `Execution requested for profile ${selectedProfile.id}.`,
         stage: "execution-decision",
       });
 
-      const workspace = await executionWorkspacePreparer.prepareByGithubEvent({ event, loggingContext });
+      let workspace;
+      try {
+        await logStep({
+          action: "workspace-prepare-requested",
+          details: {
+            eventId: loggingContext.eventId,
+            profileId: selectedProfile.id,
+            repository: `${loggingContext.owner}/${loggingContext.repo}`,
+          },
+          loggingContext,
+          message: `Preparing execution workspace for profile ${selectedProfile.id}.`,
+          stage: "execution-preparation",
+        });
+        workspace = await executionWorkspacePreparer.prepareByGithubEvent({ event, loggingContext });
+        await logStep({
+          action: "workspace-prepared",
+          details: {
+            eventId: loggingContext.eventId,
+            profileId: selectedProfile.id,
+            repository: `${loggingContext.owner}/${loggingContext.repo}`,
+            workspacePath: workspace.workspacePath,
+          },
+          loggingContext,
+          message: `Prepared execution workspace for profile ${selectedProfile.id}.`,
+          stage: "execution-preparation",
+        });
+      } catch (error) {
+        await logStep({
+          action: "workspace-prepare-failed",
+          details: {
+            eventId: loggingContext.eventId,
+            profileId: selectedProfile.id,
+            repository: `${loggingContext.owner}/${loggingContext.repo}`,
+            error: error instanceof Error ? error.message : String(error),
+          },
+          loggingContext,
+          message: `Failed to prepare execution workspace for profile ${selectedProfile.id}.`,
+          stage: "execution-preparation",
+        });
+        throw error;
+      }
+
       const preparedPrompt = await executionPromptMaterializer.materialize({ event, loggingContext, selectedProfile, workspace });
       const launchContract = executionLaunchContractFactory.create({
         loggingContext,
@@ -63,20 +108,8 @@ export default class Github_Flows_Execution_Start_Coordinator {
         workspace,
       });
 
-      logger?.logComponentAction?.({
-        component: "Github_Flows_Execution_Start_Coordinator",
+      await logStep({
         action: "launch-contract-materialized",
-        details: {
-          image: launchContract.environment.image,
-          profileId: selectedProfile.id,
-          workspaceRoot: launchContract.environment.workspaceRoot,
-          workspacePath: launchContract.environment.workspacePath,
-        },
-        message: `Materialized launch contract for profile ${selectedProfile.id}.`,
-      });
-      await eventLog.logEventProcessing({
-        action: "launch-contract-materialized",
-        component: "Github_Flows_Execution_Start_Coordinator",
         details: {
           image: launchContract.environment.image,
           profileId: selectedProfile.id,
@@ -91,7 +124,34 @@ export default class Github_Flows_Execution_Start_Coordinator {
       if (launchContract.type !== "docker") {
         throw new Error(`Unsupported launch contract type: ${launchContract.type}`);
       }
-      return await executionRuntimeDocker.run({ launchContract, loggingContext });
+
+      await logStep({
+        action: "runtime-start-requested",
+        details: {
+          eventId: loggingContext.eventId,
+          profileId: selectedProfile.id,
+          repository: `${loggingContext.owner}/${loggingContext.repo}`,
+          workspacePath: launchContract.environment.workspacePath,
+        },
+        loggingContext,
+        message: `Starting runtime for profile ${selectedProfile.id}.`,
+        stage: "execution-runtime",
+      });
+      const result = await executionRuntimeDocker.run({ launchContract, loggingContext });
+      await logStep({
+        action: "runtime-completed",
+        details: {
+          eventId: loggingContext.eventId,
+          exit: result.exit,
+          profileId: selectedProfile.id,
+          repository: `${loggingContext.owner}/${loggingContext.repo}`,
+          workspacePath: launchContract.environment.workspacePath,
+        },
+        loggingContext,
+        message: `Completed runtime for profile ${selectedProfile.id}.`,
+        stage: "execution-runtime",
+      });
+      return result;
     };
   }
 }

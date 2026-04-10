@@ -258,6 +258,22 @@ export default class Github_Flows_Execution_Runtime_Docker {
       const contract = validateLaunchContract(launchContract);
       await fsPromises.stat(contract.environment.workspaceRoot);
       await fsPromises.stat(contract.environment.workspacePath);
+      const emit = async function (action, message, details) {
+        logger?.logComponentAction?.({
+          component: "Github_Flows_Execution_Runtime_Docker",
+          action,
+          details,
+          message,
+        });
+        await eventLog.logEventProcessing({
+          action,
+          component: "Github_Flows_Execution_Runtime_Docker",
+          details,
+          loggingContext,
+          message,
+          stage: "execution-runtime",
+        });
+      };
       logger?.logComponentAction?.({
         component: "Github_Flows_Execution_Runtime_Docker",
         action: "docker-run-start",
@@ -281,6 +297,11 @@ export default class Github_Flows_Execution_Runtime_Docker {
         loggingContext,
         message: `Starting containerized execution for ${contract.handler.type}.`,
         stage: "runtime",
+      });
+      await emit("runtime-container-started", `Starting Docker runtime for ${loggingContext.eventId}.`, {
+        eventId: loggingContext.eventId,
+        exitCode: undefined,
+        workspacePath: contract.environment.workspacePath,
       });
 
       try {
@@ -319,6 +340,17 @@ export default class Github_Flows_Execution_Runtime_Docker {
         const exit = typedError.code === "ETIMEDOUT" || typedError.killed || typedError.signal === "SIGKILL"
           ? "timeout"
           : "failure";
+        await emit(
+          exit === "timeout" ? "runtime-container-failed" : "runtime-container-failed",
+          exit === "timeout"
+            ? `Timed out Docker runtime for ${loggingContext.eventId}.`
+            : `Failed Docker runtime for ${loggingContext.eventId}.`,
+          {
+            eventId: loggingContext.eventId,
+            exitCode: typedError.code ?? null,
+            workspacePath: contract.environment.workspacePath,
+          },
+        );
         logger?.logComponentAction?.({
           component: "Github_Flows_Execution_Runtime_Docker",
           action: exit === "timeout" ? "docker-run-timeout" : "docker-run-failed",

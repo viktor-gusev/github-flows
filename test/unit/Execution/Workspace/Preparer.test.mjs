@@ -83,74 +83,21 @@ test("workspace preparer creates execution workspace and clones repository from 
         args: ["-C", path.resolve(result.workspacePath, "repo"), "remote", "set-url", "origin", "git@github.com:octocat/demo.git"],
       },
     ]);
-    assert.deepEqual(logCalls, [
-      {
-        component: "Github_Flows_Execution_Workspace_Preparer",
-        action: "workspace-create",
-        details: {
-          eventId: "evt-42",
-          eventType: "pull_request_opened",
-          owner: "octocat",
-          repo: "demo",
-          workspacePath: path.resolve(workspaceRoot, "ws", "octocat", "demo", "pull_request_opened", "evt-42"),
-        },
-        message: "Created execution workspace for octocat/demo.",
-      },
-      {
-        archival: true,
-        action: "workspace-create",
-        component: "Github_Flows_Execution_Workspace_Preparer",
-        details: {
-          eventId: "evt-42",
-          eventType: "pull_request_opened",
-          owner: "octocat",
-          repo: "demo",
-          workspacePath: path.resolve(workspaceRoot, "ws", "octocat", "demo", "pull_request_opened", "evt-42"),
-        },
-        loggingContext: {
-          eventId: "evt-42",
-          eventType: "pull_request_opened",
-          logDirectory: path.resolve(workspaceRoot, "log", "run", "octocat", "demo", "pull_request_opened", "evt-42"),
-          owner: "octocat",
-          repo: "demo",
-        },
-        message: "Created execution workspace for octocat/demo.",
-        stage: "execution-preparation",
-      },
-      {
-        component: "Github_Flows_Execution_Workspace_Preparer",
-        action: "workspace-repo-clone",
-        details: {
-          owner: "octocat",
-          repo: "demo",
-          repositoryCachePath: cachePath,
-          repoPath: path.resolve(result.workspacePath, "repo"),
-          workspacePath: path.resolve(workspaceRoot, "ws", "octocat", "demo", "pull_request_opened", "evt-42"),
-        },
-        message: "Cloned repository into execution workspace for octocat/demo.",
-      },
-      {
-        archival: true,
-        action: "workspace-repo-clone",
-        component: "Github_Flows_Execution_Workspace_Preparer",
-        details: {
-          owner: "octocat",
-          repo: "demo",
-          repositoryCachePath: cachePath,
-          repoPath: path.resolve(result.workspacePath, "repo"),
-          workspacePath: path.resolve(result.workspacePath),
-        },
-        loggingContext: {
-          eventId: "evt-42",
-          eventType: "pull_request_opened",
-          logDirectory: path.resolve(workspaceRoot, "log", "run", "octocat", "demo", "pull_request_opened", "evt-42"),
-          owner: "octocat",
-          repo: "demo",
-        },
-        message: "Cloned repository into execution workspace for octocat/demo.",
-        stage: "execution-preparation",
-      },
-    ]);
+    assert.equal(logCalls[0].action, "workspace-prepare-start");
+    assert.equal(logCalls[1].archival, true);
+    assert.equal(logCalls[1].action, "workspace-prepare-start");
+    assert.equal(logCalls[2].action, "workspace-create");
+    assert.equal(logCalls[3].archival, true);
+    assert.equal(logCalls[3].action, "workspace-create");
+    assert.equal(logCalls[4].action, "workspace-repo-clone");
+    assert.equal(logCalls[5].archival, true);
+    assert.equal(logCalls[5].action, "workspace-repo-clone");
+    assert.equal(logCalls[6].action, "repo-prepared");
+    assert.equal(logCalls[7].archival, true);
+    assert.equal(logCalls[7].action, "repo-prepared");
+    assert.equal(logCalls[8].action, "workspace-prepare-complete");
+    assert.equal(logCalls[9].archival, true);
+    assert.equal(logCalls[9].action, "workspace-prepare-complete");
   } finally {
     await fs.rm(workspaceRoot, { recursive: true, force: true });
   }

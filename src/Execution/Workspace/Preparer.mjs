@@ -155,6 +155,20 @@ export default class Github_Flows_Execution_Workspace_Preparer {
         eventId,
       );
       const repoPath = pathModule.join(workspacePath, "repo");
+      logger?.logComponentAction?.({
+        component: "Github_Flows_Execution_Workspace_Preparer",
+        action: "workspace-prepare-start",
+        details: { eventId, eventType, owner: identity.owner, repo: identity.repo, workspacePath },
+        message: `Starting execution workspace preparation for ${identity.owner}/${identity.repo}.`,
+      });
+      await eventLog?.logEventProcessing?.({
+        action: "workspace-prepare-start",
+        component: "Github_Flows_Execution_Workspace_Preparer",
+        details: { eventId, eventType, owner: identity.owner, repo: identity.repo, workspacePath },
+        loggingContext,
+        message: `Starting execution workspace preparation for ${identity.owner}/${identity.repo}.`,
+        stage: "execution-preparation",
+      });
       const cacheEntry = await repoCacheManager.syncByGithubEvent({ event });
 
       await assertWorkspaceIsAbsent(fsPromises, workspacePath);
@@ -214,9 +228,91 @@ export default class Github_Flows_Execution_Workspace_Preparer {
         if (originUrl.length > 0) {
           await runCommand(childProcess, "git", ["-C", repoPath, "remote", "set-url", "origin", originUrl]);
         }
-      } catch {
-        // Keep the cloned repository usable even if cache origin is unavailable.
+        logger?.logComponentAction?.({
+          component: "Github_Flows_Execution_Workspace_Preparer",
+          action: "repo-prepared",
+          details: {
+            owner: identity.owner,
+            repo: identity.repo,
+            repoPath,
+            repositoryCachePath: cacheEntry.path,
+            workspacePath,
+          },
+          message: `Prepared repository copy for ${identity.owner}/${identity.repo}.`,
+        });
+        await eventLog?.logEventProcessing?.({
+          action: "repo-prepared",
+          component: "Github_Flows_Execution_Workspace_Preparer",
+          details: {
+            owner: identity.owner,
+            repo: identity.repo,
+            repoPath,
+            repositoryCachePath: cacheEntry.path,
+            workspacePath,
+          },
+          loggingContext,
+          message: `Prepared repository copy for ${identity.owner}/${identity.repo}.`,
+          stage: "execution-preparation",
+        });
+      } catch (error) {
+        logger?.logComponentAction?.({
+          component: "Github_Flows_Execution_Workspace_Preparer",
+          action: "repo-prepare-failed",
+          details: {
+            eventId,
+            owner: identity.owner,
+            repo: identity.repo,
+            repoPath,
+            repositoryCachePath: cacheEntry.path,
+            workspacePath,
+            error: error instanceof Error ? error.message : String(error),
+          },
+          message: `Failed to prepare repository copy for ${identity.owner}/${identity.repo}.`,
+        });
+        await eventLog?.logEventProcessing?.({
+          action: "repo-prepare-failed",
+          component: "Github_Flows_Execution_Workspace_Preparer",
+          details: {
+            eventId,
+            owner: identity.owner,
+            repo: identity.repo,
+            repoPath,
+            repositoryCachePath: cacheEntry.path,
+            workspacePath,
+            error: error instanceof Error ? error.message : String(error),
+          },
+          loggingContext,
+          message: `Failed to prepare repository copy for ${identity.owner}/${identity.repo}.`,
+          stage: "execution-preparation",
+        });
       }
+
+      logger?.logComponentAction?.({
+        component: "Github_Flows_Execution_Workspace_Preparer",
+        action: "workspace-prepare-complete",
+        details: {
+          eventId,
+          eventType,
+          owner: identity.owner,
+          repo: identity.repo,
+          workspacePath,
+        },
+        message: `Completed execution workspace preparation for ${identity.owner}/${identity.repo}.`,
+      });
+      await eventLog?.logEventProcessing?.({
+        action: "workspace-prepare-complete",
+        component: "Github_Flows_Execution_Workspace_Preparer",
+        details: {
+          eventId,
+          eventType,
+          owner: identity.owner,
+          repo: identity.repo,
+          workspacePath,
+        },
+        loggingContext,
+        message: `Completed execution workspace preparation for ${identity.owner}/${identity.repo}.`,
+        stage: "execution-preparation",
+      });
 
       return {
         eventId,
