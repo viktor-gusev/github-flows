@@ -36,6 +36,13 @@
     "teqfw",
     "nodejs"
   ],
+  "files": [
+    "ai/",
+    "src/",
+    "LICENSE",
+    "README.md",
+    "types.d.ts"
+  ],
   "teqfw": {
     "namespaces": [
       {
@@ -52,7 +59,6 @@
     "@types/node": "*"
   },
   "scripts": {
-    "start": "node ./bin/cli.mjs",
     "test:unit": "find test/unit -name '*.test.mjs' -print0 | xargs -0 node --test",
     "test:integration": "find test/integration -name '*.test.mjs' -print0 | xargs -0 node --test",
     "test": "npm run test:unit && npm run test:integration"
