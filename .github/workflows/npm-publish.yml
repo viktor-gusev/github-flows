@@ -6,65 +6,53 @@ on:
     types: [published]
 
 jobs:
-  build:
+  publish:
     runs-on: ubuntu-latest
-    steps:
-      # Checkout repository code
-      - uses: actions/checkout@v4
 
-      # Setup Node.js environment
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-
-      # Install dependencies using package-lock.json
-      - run: npm ci
-
-      # Run all tests
-      - run: npm run test
-
-  publish-npm:
-    needs: build
-    runs-on: ubuntu-latest
     permissions:
       contents: read
+
     steps:
-      # Checkout repository code again for a separate job
       - uses: actions/checkout@v4
 
-      # Setup Node.js and configure npm registry
       - uses: actions/setup-node@v4
         with:
           node-version: 20
           registry-url: https://registry.npmjs.org/
 
-      # Install dependencies again
       - run: npm ci
 
-      # Ensure release tag matches package version when triggered by a release
+      - run: npm test
+
+      # Read package metadata via npm (ESM-safe)
+      - name: Read package.json
+        id: pkg
+        run: |
+          NAME=$(npm pkg get name | tr -d '"')
+          VERSION=$(npm pkg get version | tr -d '"')
+          echo "name=$NAME" >> $GITHUB_OUTPUT
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+      # Check release tag matches version
       - name: Check release version
         if: github.event_name == 'release'
         run: |
-          PKG_VERSION=$(node -p "require('./package.json').version")
           RELEASE_TAG='${{ github.event.release.tag_name }}'
           RELEASE_VERSION="${RELEASE_TAG#v}"
-          test "$PKG_VERSION" = "$RELEASE_VERSION"
+          test "${{ steps.pkg.outputs.version }}" = "$RELEASE_VERSION"
 
-      # Ensure version is not already published
+      # Check version not already published
       - name: Check version not published
         run: |
-          PKG_NAME=$(node -p "require('./package.json').name")
-          PKG_VERSION=$(node -p "require('./package.json').version")
-          if npm view "$PKG_NAME@$PKG_VERSION" version >/dev/null 2>&1; then
-            echo "Version $PKG_NAME@$PKG_VERSION is already published."
+          if npm view "${{ steps.pkg.outputs.name }}@${{ steps.pkg.outputs.version }}" version >/dev/null 2>&1; then
+            echo "Version already published"
             exit 1
           fi
 
-      # Inspect package contents before publishing
-      - name: Inspect package
-        run: npm pack --dry-run
+      # Inspect package
+      - run: npm pack --dry-run
 
-      # Publish package to npm registry with authentication token
+      # Publish
       - run: npm publish --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
