@@ -12,7 +12,11 @@ test("repo cache manager clones missing repository into workspace cache", async 
   const logCalls = [];
   const manager = new Github_Flows_Repo_Cache_Manager({
     childProcess: {
-      execFile(command, args, callback) {
+      execFile(command, args, options, callback) {
+        if (typeof options === "function") {
+          callback = options;
+          options = {};
+        }
         calls.push({ command, args });
         callback(null);
       },
@@ -84,7 +88,11 @@ test("repo cache manager pulls existing repository cache", async () => {
 
   const manager = new Github_Flows_Repo_Cache_Manager({
     childProcess: {
-      execFile(command, args, callback) {
+      execFile(command, args, options, callback) {
+        if (typeof options === "function") {
+          callback = options;
+          options = {};
+        }
         calls.push({ command, args });
         callback(null);
       },
@@ -137,7 +145,10 @@ test("repo cache manager pulls existing repository cache", async () => {
 test("repo cache manager rejects payloads without repository identity", async () => {
   const manager = new Github_Flows_Repo_Cache_Manager({
     childProcess: {
-      execFile(_command, _args, callback) {
+      execFile(_command, _args, _options, callback) {
+        if (typeof _options === "function") {
+          callback = _options;
+        }
         callback(new Error("must not be called"));
       },
     },
@@ -152,4 +163,46 @@ test("repo cache manager rejects payloads without repository identity", async ()
     }),
     /repository name is missing/i,
   );
+});
+
+test("repo cache manager passes git auth env when host token is present", async () => {
+  const workspaceRoot = await fs.mkdtemp(path.join(os.tmpdir(), "github-flows-cache-"));
+  const originalToken = process.env.GH_TOKEN;
+  process.env.GH_TOKEN = "ghp_test-token";
+  let seenOptions;
+
+  const manager = new Github_Flows_Repo_Cache_Manager({
+    childProcess: {
+      execFile(_command, _args, options, callback) {
+        if (typeof options === "function") {
+          callback = options;
+          options = {};
+        }
+        seenOptions = options;
+        callback(null);
+      },
+    },
+    fsPromises: fs,
+    pathModule: path,
+    runtime: { workspaceRoot },
+  });
+
+  try {
+    await manager.syncByGithubEvent({
+      event: {
+        repository: {
+          id: 1,
+          name: "demo",
+          owner: { login: "octocat" },
+        },
+      },
+    });
+
+    assert.equal(seenOptions.env.GIT_TERMINAL_PROMPT, "0");
+    assert.equal(seenOptions.env.GIT_CONFIG_KEY_0, "credential.helper");
+    assert.equal(seenOptions.env.GH_TOKEN, "ghp_test-token");
+  } finally {
+    process.env.GH_TOKEN = originalToken;
+    await fs.rm(workspaceRoot, { recursive: true, force: true });
+  }
 });

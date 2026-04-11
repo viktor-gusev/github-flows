@@ -13,7 +13,11 @@ test("workspace preparer creates execution workspace and clones repository from 
   const logCalls = [];
   const preparer = new Github_Flows_Execution_Workspace_Preparer({
     childProcess: {
-      execFile(command, args, callback) {
+      execFile(command, args, options, callback) {
+        if (typeof options === "function") {
+          callback = options;
+          options = {};
+        }
         calls.push({ command, args });
         if ((command === "git") && (args[2] === "remote") && (args[3] === "get-url")) {
           callback(null, "git@github.com:octocat/demo.git\n", "");
@@ -103,11 +107,63 @@ test("workspace preparer creates execution workspace and clones repository from 
   }
 });
 
+test("workspace preparer passes git auth env when host token is present", async () => {
+  const workspaceRoot = await fs.mkdtemp(path.join(os.tmpdir(), "github-flows-ws-"));
+  const originalToken = process.env.GITHUB_TOKEN;
+  process.env.GITHUB_TOKEN = "ghp_test-token";
+  let seenOptions;
+
+  const preparer = new Github_Flows_Execution_Workspace_Preparer({
+    childProcess: {
+      execFile(_command, _args, options, callback) {
+        if (typeof options === "function") {
+          callback = options;
+          options = {};
+        }
+        seenOptions = options;
+        callback(null, "", "");
+      },
+    },
+    eventLog: {},
+    fsPromises: fs,
+    pathModule: path,
+    repoCacheManager: {
+      async syncByGithubEvent() {
+        return { path: path.resolve(workspaceRoot, "cache", "repo", "octocat", "demo") };
+      },
+    },
+    runtime: { workspaceRoot },
+  });
+
+  try {
+    await preparer.prepareByGithubEvent({
+      event: {
+        eventId: "evt-1",
+        eventType: "push",
+        repository: {
+          name: "demo",
+          owner: { login: "octocat" },
+        },
+      },
+    });
+
+    assert.equal(seenOptions.env.GIT_TERMINAL_PROMPT, "0");
+    assert.equal(seenOptions.env.GIT_CONFIG_KEY_0, "credential.helper");
+    assert.equal(seenOptions.env.GITHUB_TOKEN, "ghp_test-token");
+  } finally {
+    process.env.GITHUB_TOKEN = originalToken;
+    await fs.rm(workspaceRoot, { recursive: true, force: true });
+  }
+});
+
 test("workspace preparer generates fallback event id when payload has no stable event id", async () => {
   const workspaceRoot = await fs.mkdtemp(path.join(os.tmpdir(), "github-flows-ws-"));
   const preparer = new Github_Flows_Execution_Workspace_Preparer({
     childProcess: {
-      execFile(_command, _args, callback) {
+      execFile(_command, _args, _options, callback) {
+        if (typeof _options === "function") {
+          callback = _options;
+        }
         callback(null, "", "");
       },
     },
@@ -150,7 +206,10 @@ test("workspace preparer rejects reuse of an existing execution workspace path",
   await fs.mkdir(existingWorkspace, { recursive: true });
   const preparer = new Github_Flows_Execution_Workspace_Preparer({
     childProcess: {
-      execFile(_command, _args, callback) {
+      execFile(_command, _args, _options, callback) {
+        if (typeof _options === "function") {
+          callback = _options;
+        }
         callback(null, "", "");
       },
     },

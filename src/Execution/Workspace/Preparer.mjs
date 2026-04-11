@@ -4,10 +4,26 @@
  * @description Prepares isolated execution workspaces for containerized agent runs.
  */
 
+/* Builds a non-interactive git auth env from host-provided token variables. */
+function buildGitAuthEnv(baseEnv = process.env) {
+  const token = baseEnv.GH_TOKEN ?? baseEnv.GITHUB_TOKEN;
+  if (typeof token !== "string" || token.length === 0) {
+    return baseEnv;
+  }
+
+  return {
+    ...baseEnv,
+    GIT_TERMINAL_PROMPT: "0",
+    GIT_CONFIG_COUNT: "1",
+    GIT_CONFIG_KEY_0: "credential.helper",
+    GIT_CONFIG_VALUE_0: `!f() { printf 'username=x-access-token\npassword=%s\n' "$GH_TOKEN"; }; f`,
+  };
+}
+
 /* Executes external command through injected child-process module. */
-async function runCommand(childProcess, command, args) {
+async function runCommand(childProcess, command, args, options = {}) {
   return await new Promise((resolve, reject) => {
-    childProcess.execFile(command, args, (error, stdout = "", stderr = "") => {
+    childProcess.execFile(command, args, options, (error, stdout = "", stderr = "") => {
       if (error) reject(error);
       else resolve({ stderr, stdout });
     });
@@ -146,6 +162,7 @@ export default class Github_Flows_Execution_Workspace_Preparer {
         : extractIdentity(payload.repository);
       const eventType = loggingContext?.eventType ?? extractEventType(event);
       const eventId = loggingContext?.eventId ?? extractEventId(event, nowFactory, randomIntFactory);
+      const gitAuthEnv = buildGitAuthEnv();
       const workspacePath = pathModule.resolve(
         runtime.workspaceRoot,
         "ws",
@@ -188,7 +205,7 @@ export default class Github_Flows_Execution_Workspace_Preparer {
         stage: "execution-preparation",
       });
 
-      await runCommand(childProcess, "git", ["clone", "--no-hardlinks", cacheEntry.path, repoPath]);
+      await runCommand(childProcess, "git", ["clone", "--no-hardlinks", cacheEntry.path, repoPath], { env: gitAuthEnv });
       logger?.logComponentAction?.({
         component: "Github_Flows_Execution_Workspace_Preparer",
         action: "workspace-repo-clone",
@@ -223,10 +240,10 @@ export default class Github_Flows_Execution_Workspace_Preparer {
           "remote",
           "get-url",
           "origin",
-        ]);
+        ], { env: gitAuthEnv });
         const originUrl = stdout.trim();
         if (originUrl.length > 0) {
-          await runCommand(childProcess, "git", ["-C", repoPath, "remote", "set-url", "origin", originUrl]);
+          await runCommand(childProcess, "git", ["-C", repoPath, "remote", "set-url", "origin", originUrl], { env: gitAuthEnv });
         }
         logger?.logComponentAction?.({
           component: "Github_Flows_Execution_Workspace_Preparer",

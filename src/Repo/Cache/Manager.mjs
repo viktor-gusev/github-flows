@@ -4,10 +4,26 @@
  * @description Maintains shared local repository cache entries for GitHub repositories.
  */
 
+/* Builds a non-interactive git auth env from host-provided token variables. */
+function buildGitAuthEnv(baseEnv = process.env) {
+  const token = baseEnv.GH_TOKEN ?? baseEnv.GITHUB_TOKEN;
+  if (typeof token !== "string" || token.length === 0) {
+    return baseEnv;
+  }
+
+  return {
+    ...baseEnv,
+    GIT_TERMINAL_PROMPT: "0",
+    GIT_CONFIG_COUNT: "1",
+    GIT_CONFIG_KEY_0: "credential.helper",
+    GIT_CONFIG_VALUE_0: `!f() { printf 'username=x-access-token\npassword=%s\n' "$GH_TOKEN"; }; f`,
+  };
+}
+
 /* Executes external command through injected child-process module. */
-async function runCommand(childProcess, command, args) {
+async function runCommand(childProcess, command, args, options = {}) {
   await new Promise((resolve, reject) => {
-    childProcess.execFile(command, args, (error) => {
+    childProcess.execFile(command, args, options, (error) => {
       if (error) reject(error);
       else resolve();
     });
@@ -81,11 +97,12 @@ export default class Github_Flows_Repo_Cache_Manager {
       const repoRoot = pathModule.resolve(runtime.workspaceRoot, "cache", "repo", identity.owner);
       const repoPath = pathModule.join(repoRoot, identity.repo);
       const cloneRef = `${identity.owner}/${identity.repo}`;
+      const gitAuthEnv = buildGitAuthEnv();
 
       await fsPromises.mkdir(repoRoot, { recursive: true });
 
       if (await isGitRepository(fsPromises, pathModule, repoPath)) {
-        await runCommand(childProcess, "git", ["-C", repoPath, "pull", "--ff-only", "--depth=1"]);
+        await runCommand(childProcess, "git", ["-C", repoPath, "pull", "--ff-only", "--depth=1"], { env: gitAuthEnv });
         logger?.logComponentAction?.({
           component: "Github_Flows_Repo_Cache_Manager",
           action: "pull",
@@ -104,7 +121,7 @@ export default class Github_Flows_Repo_Cache_Manager {
         "--depth=1",
         "--single-branch",
         "--no-tags",
-      ]);
+      ], { env: gitAuthEnv });
       logger?.logComponentAction?.({
         component: "Github_Flows_Repo_Cache_Manager",
         action: "clone",
