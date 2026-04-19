@@ -1,7 +1,7 @@
 # AGENTS.md
 
 - Path: `ai/AGENTS.md`
-- Version: `20260410`
+- Version: `20260419`
 
 ## Package Purpose
 
@@ -21,4 +21,3 @@ Read the documents in this order:
 ## Scope
 
 This directory documents only the supported public surface. Internal implementation details, repository layout, and unrelated project notes are out of scope here.
-

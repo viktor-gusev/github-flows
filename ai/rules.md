@@ -1,7 +1,7 @@
 # Usage Rules
 
 - Path: `ai/rules.md`
-- Version: `20260410`
+- Version: `20260419`
 
 ## Structural Rules
 
@@ -30,4 +30,3 @@
 - The package owns selection and launch permission.
 - Events with no selected profile are skipped.
 - The package does not become a host-controlled validation engine.
-

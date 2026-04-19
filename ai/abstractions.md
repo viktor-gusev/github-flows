@@ -1,7 +1,7 @@
 # Core Abstractions
 
 - Path: `ai/abstractions.md`
-- Version: `20260410`
+- Version: `20260419`
 
 ## Web Server
 
@@ -52,4 +52,3 @@ The host may register at most one provider for the application lifetime.
 `Github_Flows_Web_Handler_Webhook` is the public handler for the fixed ingress path `/webhooks/github`.
 
 It admits GitHub webhook requests, derives event attributes, resolves a profile, and starts execution only when a profile is selected.
-

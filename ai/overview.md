@@ -1,7 +1,7 @@
 # Package Overview
 
 - Path: `ai/overview.md`
-- Version: `20260410`
+- Version: `20260419`
 
 ## Purpose
 
@@ -29,4 +29,3 @@ Summarizes the public role of `@teqfw/github-flows` for agents and host applicat
 Use the package when a host application needs GitHub-driven execution startup inside a TeqFW system.
 
 Do not treat the package as a standalone app, workflow engine, or host-controlled execution decision layer.
-

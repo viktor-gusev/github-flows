@@ -1,7 +1,7 @@
 # Event Attribute Provider Example
 
 - Path: `ai/examples/event-attribute-provider.md`
-- Version: `20260410`
+- Version: `20260419`
 
 This example shows how a host application can register one optional `Github_Flows_Event_Attribute_Provider` during startup.
 
@@ -80,4 +80,3 @@ Notes:
 - return additional attributes only;
 - let the package handle profile matching and execution permission;
 - skip the provider entirely if the host does not need extra event attributes.
-

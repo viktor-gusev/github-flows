@@ -2,6 +2,23 @@
 
 All notable changes to `@teqfw/github-flows` will be documented in this file.
 
+## 0.2.0 - 2026-04-19
+
+Release focused on execution observability and repository automation alignment.
+
+### Added
+
+- observational log indexes for webhook execution traces;
+- richer execution workspace preparation coverage for prompt materialization;
+- updated release metadata to reflect the current package state.
+
+### Changed
+
+- archival logging now omits event type from the stored path;
+- GitHub Actions publishing flow now uses the current npm scenario;
+- Git authentication in automation now uses the environment-provided token;
+- cache and preparation pipelines were refined to match the current execution model.
+
 ## 0.1.1 - 2026-04-10
 
 Release focused on execution traceability and launch flow refinement.
