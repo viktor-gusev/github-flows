@@ -56,7 +56,6 @@ export default class App_Github_Bootstrap {
         this.execute = async function () {
             runtimeFactory.configure({
                 workspaceRoot: './var/github-flows',
-                runtimeImage: 'codex-agent:latest',
                 webhookSecret: 'shared-secret',
             });
             runtimeFactory.freeze();

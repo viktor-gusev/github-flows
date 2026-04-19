@@ -24,7 +24,9 @@ The package:
 - may ask the host for additional event attributes for the current admitted event;
 - resolves candidate profiles from `workspaceRoot/cfg/`;
 - selects zero or one effective execution profile;
-- delegates the permitted execution to the host runtime boundary.
+- delegates the permitted execution to the host runtime boundary;
+- records event-scoped archival logs under `workspaceRoot/log/run/{owner}/{repo}/{eventId}/`;
+- builds observational log indexes under `workspaceRoot/log/index/` for navigation by event type, action, and object number.
 
 The package does not:
 
@@ -51,8 +53,25 @@ The runtime configuration is flat and uses these fields:
 - `httpHost` - optional, defaults to `127.0.0.1`;
 - `httpPort` - optional, defaults to `3000`;
 - `workspaceRoot` - required;
-- `runtimeImage` - required;
 - `webhookSecret` - required.
+
+## Observability
+
+For each admitted event, the package writes a canonical archival directory:
+
+- `workspaceRoot/log/run/{owner}/{repo}/{eventId}/`
+
+It may also create observational symlink indexes for easier navigation:
+
+- `workspaceRoot/log/index/by-event/{owner}/{repo}/{eventType}/{eventId}`
+- `workspaceRoot/log/index/by-action/{owner}/{repo}/{eventType}/{action}/{eventId}`
+- `workspaceRoot/log/index/by-number/{owner}/{repo}/{objectType}/{number}/{eventId}`
+
+These indexes are derivative views only. The canonical event log storage remains under `log/run/`.
+
+## Git Authentication
+
+When the host environment provides `GH_TOKEN` or `GITHUB_TOKEN`, the package uses that token for non-interactive `git` operations during repository-cache synchronization and execution-workspace preparation.
 
 ## Event Attribute Provider
 

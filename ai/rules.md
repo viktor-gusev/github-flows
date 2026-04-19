@@ -23,6 +23,8 @@
 - Host code should resolve `Github_Flows_*` modules through DI rather than wiring internals manually.
 - Events are evaluated independently.
 - The package must not rely on cross-event state for selection.
+- Canonical admitted-event archives remain under `workspaceRoot/log/run/{owner}/{repo}/{eventId}/`.
+- Observational indexes under `workspaceRoot/log/index/` are derivative navigation views only.
 
 ## Boundary Rules
 

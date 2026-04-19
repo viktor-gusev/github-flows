@@ -4,20 +4,18 @@ All notable changes to `@teqfw/github-flows` will be documented in this file.
 
 ## 0.2.0 - 2026-04-19
 
-Release focused on execution observability and repository automation alignment.
+Release focused on repository-scoped event traceability and host-side Git authentication.
 
 ### Added
 
-- observational log indexes for webhook execution traces;
-- richer execution workspace preparation coverage for prompt materialization;
-- updated release metadata to reflect the current package state.
+- non-interactive Git authentication for repository cache synchronization and workspace preparation using host-provided `GH_TOKEN` or `GITHUB_TOKEN`;
+- observational log indexes under `workspaceRoot/log/index/` for navigation by event type, action, and user-facing object number.
 
 ### Changed
 
-- archival logging now omits event type from the stored path;
-- GitHub Actions publishing flow now uses the current npm scenario;
-- Git authentication in automation now uses the environment-provided token;
-- cache and preparation pipelines were refined to match the current execution model.
+- canonical admitted-event archival logs now use `workspaceRoot/log/run/{owner}/{repo}/{eventId}/`;
+- release publication workflow now runs the full test suite, validates release-tag version alignment, and checks npm publication state before publishing;
+- package documentation now describes the current runtime configuration and event-log navigation model more accurately.
 
 ## 0.1.1 - 2026-04-10
 

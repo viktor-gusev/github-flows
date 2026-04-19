@@ -16,13 +16,14 @@ It must be started by the host after runtime configuration is frozen.
 Required fields:
 
 - `workspaceRoot`
-- `runtimeImage`
 - `webhookSecret`
 
 Optional fields:
 
 - `httpHost`
 - `httpPort`
+
+`workspaceRoot` also anchors repository cache, execution workspaces, canonical event-log archives, and observational log indexes.
 
 ## Event Attribute Provider
 
