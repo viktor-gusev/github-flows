@@ -211,6 +211,7 @@ test("webhook ingress is served on the static GitHub webhook path", { timeout: 5
       action: "opened",
       eventId: "evt-1",
       issue: {
+        number: 42,
         title: "Integration issue",
       },
       repository: {
@@ -264,6 +265,9 @@ test("webhook ingress is served on the static GitHub webhook path", { timeout: 5
       fs.stat(path.resolve(workspaceRoot, "ws", "octocat", "demo", "issues", "evt-1", "repo", ".git")),
     );
     const eventScope = path.resolve(workspaceRoot, "log", "run", "octocat", "demo", "evt-1");
+    const byEventIndex = path.resolve(workspaceRoot, "log", "index", "by-event", "octocat", "demo", "issues", "evt-1");
+    const byActionIndex = path.resolve(workspaceRoot, "log", "index", "by-action", "octocat", "demo", "issues", "opened", "evt-1");
+    const byNumberIndex = path.resolve(workspaceRoot, "log", "index", "by-number", "octocat", "demo", "issue", "42", "evt-1");
     const eventSnapshot = JSON.parse(await fs.readFile(path.resolve(eventScope, "event.json"), "utf8"));
     const effectiveProfile = JSON.parse(await fs.readFile(path.resolve(eventScope, "effective-profile.json"), "utf8"));
     const promptBindings = JSON.parse(await fs.readFile(path.resolve(eventScope, "prompt-bindings.json"), "utf8"));
@@ -273,11 +277,18 @@ test("webhook ingress is served on the static GitHub webhook path", { timeout: 5
       .map((line) => JSON.parse(line));
 
     assert.equal(eventSnapshot.body.eventId, "evt-1");
+    assert.equal(eventSnapshot.body.issue.number, 42);
     assert.equal(eventSnapshot.headers["x-github-event"], "issues");
     assert.equal(effectiveProfile.id, "issues/profile.json");
     assert.deepEqual(promptBindings, {
       ISSUE_TITLE: "Integration issue",
     });
+    assert.equal((await fs.lstat(byEventIndex)).isSymbolicLink(), true);
+    assert.equal((await fs.lstat(byActionIndex)).isSymbolicLink(), true);
+    assert.equal((await fs.lstat(byNumberIndex)).isSymbolicLink(), true);
+    assert.equal(await fs.realpath(byEventIndex), await fs.realpath(eventScope));
+    assert.equal(await fs.realpath(byActionIndex), await fs.realpath(eventScope));
+    assert.equal(await fs.realpath(byNumberIndex), await fs.realpath(eventScope));
     assert.ok(eventsLog.length > 0);
     assert.equal(
       await fs.readFile(path.resolve(eventScope, "stdout.log"), "utf8"),

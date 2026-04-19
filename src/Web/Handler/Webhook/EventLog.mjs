@@ -12,6 +12,80 @@ const EVENT_LOG_FILENAME = "events.log";
 const EVENT_SNAPSHOT_FILENAME = "event.json";
 const EFFECTIVE_PROFILE_FILENAME = "effective-profile.json";
 const PROMPT_BINDINGS_FILENAME = "prompt-bindings.json";
+const INDEX_BRANCH = ["log", "index"];
+
+/**
+ * @param {unknown} value
+ * @returns {Record<string, unknown>}
+ */
+function asRecord(value) {
+  if (value && typeof value === "object" && !Array.isArray(value)) {
+    return /** @type {Record<string, unknown>} */ (value);
+  }
+  return {};
+}
+
+/**
+ * @param {unknown} value
+ * @param {string} fallback
+ * @returns {string}
+ */
+function sanitizePathSegment(value, fallback) {
+  if (typeof value !== "string" && typeof value !== "number") return fallback;
+  const trimmed = String(value).trim();
+  if (trimmed.length === 0) return fallback;
+  const normalized = trimmed.replaceAll(/[^A-Za-z0-9._-]+/g, "_").replaceAll(/^[_./-]+|[_./-]+$/g, "");
+  return normalized.length > 0 ? normalized : fallback;
+}
+
+/**
+ * @param {unknown} payload
+ * @returns {Array<string[]>}
+ */
+function buildIndexSegments(payload) {
+  const body = asRecord(payload);
+  const repository = asRecord(body.repository);
+  const owner = sanitizePathSegment(asRecord(repository.owner).login, "owner");
+  const repo = sanitizePathSegment(repository.name, "repo");
+  const eventType = sanitizePathSegment(body.event_type ?? body.eventType ?? body.type ?? "event", "event");
+  const eventId = sanitizePathSegment(body.eventId ?? body.event_id ?? body.delivery ?? body.deliveryId ?? body.id, "event");
+  const segments = [
+    ["by-event", owner, repo, eventType, eventId],
+  ];
+  const action = body.action;
+  if (typeof action === "string" && action.trim().length > 0) {
+    segments.push(["by-action", owner, repo, eventType, sanitizePathSegment(action, "action"), eventId]);
+  }
+
+  const issue = asRecord(body.issue);
+  const pullRequest = asRecord(body.pull_request);
+  const discussion = asRecord(body.discussion);
+  const release = asRecord(body.release);
+  const issueComment = asRecord(body.comment);
+  const review = asRecord(body.review);
+  const numberCandidates = [
+    { objectType: "issue", object: issue, number: issue.number },
+    { objectType: "pull_request", object: pullRequest, number: pullRequest.number ?? body.number },
+    { objectType: "discussion", object: discussion, number: discussion.number },
+    { objectType: "release", object: release, number: release.id },
+    { objectType: "issue", object: issueComment, number: issue.number },
+    { objectType: "pull_request_review", object: review, number: pullRequest.number },
+  ];
+  const selected = numberCandidates.find(({ object, number }) =>
+    Object.keys(asRecord(object)).length > 0 && (typeof number === "string" || typeof number === "number")
+  );
+  if (selected) {
+    segments.push([
+      "by-number",
+      owner,
+      repo,
+      selected.objectType,
+      sanitizePathSegment(selected.number, "number"),
+      eventId,
+    ]);
+  }
+  return segments;
+}
 
 /**
  * @param {unknown} value
@@ -120,6 +194,35 @@ export default class Github_Flows_Web_Handler_Webhook_EventLog {
       await fsPromises.mkdir(loggingContext.logDirectory, { recursive: true });
     };
 
+    const ensureIndexLink = async function (loggingContext, segments) {
+      const linkPath = pathModule.resolve(loggingContext.logDirectory, "..", "..", "..", "..", "index", ...segments);
+      await fsPromises.mkdir(pathModule.dirname(linkPath), { recursive: true });
+      const targetPath = pathModule.relative(pathModule.dirname(linkPath), loggingContext.logDirectory);
+      try {
+        await fsPromises.symlink(targetPath, linkPath, "dir");
+      } catch (error) {
+        if (/** @type {{ code?: string }} */ (error).code !== "EEXIST") throw error;
+      }
+    };
+
+    const ensureIndexes = async function ({ loggingContext, payload }) {
+      const entries = buildIndexSegments({
+        ...asRecord(payload),
+        eventId: loggingContext.eventId,
+        eventType: loggingContext.eventType,
+        repository: {
+          ...asRecord(asRecord(payload).repository),
+          name: loggingContext.repo,
+          owner: {
+            ...asRecord(asRecord(asRecord(payload).repository).owner),
+            login: loggingContext.owner,
+          },
+        },
+        event_type: loggingContext.eventType,
+      });
+      await Promise.all(entries.map((segments) => ensureIndexLink(loggingContext, segments)));
+    };
+
     const appendEvent = async function (loggingContext, entry) {
       await ensureDirectory(loggingContext);
       await fsPromises.appendFile(
@@ -183,6 +286,7 @@ export default class Github_Flows_Web_Handler_Webhook_EventLog {
         }, null, 2)}\n`,
         "utf8",
       );
+      await ensureIndexes({ loggingContext, payload });
     };
 
     /**
