@@ -183,7 +183,7 @@ test("event logger persists archival artifacts for admitted events", async () =>
   const loggingContext = {
     eventId: "evt-1",
     eventType: "issues",
-    logDirectory: path.join(workspaceRoot, "log", "run", "octocat", "demo", "issues", "evt-1"),
+    logDirectory: path.join(workspaceRoot, "log", "run", "octocat", "demo", "evt-1"),
     owner: "octocat",
     repo: "demo",
   };

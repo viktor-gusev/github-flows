@@ -263,7 +263,7 @@ test("webhook ingress is served on the static GitHub webhook path", { timeout: 5
     await assert.doesNotReject(
       fs.stat(path.resolve(workspaceRoot, "ws", "octocat", "demo", "issues", "evt-1", "repo", ".git")),
     );
-    const eventScope = path.resolve(workspaceRoot, "log", "run", "octocat", "demo", "issues", "evt-1");
+    const eventScope = path.resolve(workspaceRoot, "log", "run", "octocat", "demo", "evt-1");
     const eventSnapshot = JSON.parse(await fs.readFile(path.resolve(eventScope, "event.json"), "utf8"));
     const effectiveProfile = JSON.parse(await fs.readFile(path.resolve(eventScope, "effective-profile.json"), "utf8"));
     const promptBindings = JSON.parse(await fs.readFile(path.resolve(eventScope, "prompt-bindings.json"), "utf8"));

@@ -102,7 +102,7 @@ test("docker runtime starts container from launch contract", async () => {
       loggingContext: {
         eventId: "evt-1",
         eventType: "issues",
-        logDirectory: path.join(workspaceRoot, "log", "run", "octocat", "demo", "issues", "evt-1"),
+        logDirectory: path.join(workspaceRoot, "log", "run", "octocat", "demo", "evt-1"),
         owner: "octocat",
         repo: "demo",
       },
@@ -146,8 +146,8 @@ test("docker runtime starts container from launch contract", async () => {
     assert.equal(logs[4].action, "docker-run-complete");
     assert.equal(logs[5].archival, true);
     assert.equal(logs[5].action, "docker-run-complete");
-    assert.equal(await fs.readFile(path.join(workspaceRoot, "log", "run", "octocat", "demo", "issues", "evt-1", "stdout.log"), "utf8"), "ok");
-    assert.equal(await fs.readFile(path.join(workspaceRoot, "log", "run", "octocat", "demo", "issues", "evt-1", "stderr.log"), "utf8"), "warn");
+    assert.equal(await fs.readFile(path.join(workspaceRoot, "log", "run", "octocat", "demo", "evt-1", "stdout.log"), "utf8"), "ok");
+    assert.equal(await fs.readFile(path.join(workspaceRoot, "log", "run", "octocat", "demo", "evt-1", "stderr.log"), "utf8"), "warn");
     assert.deepEqual(observedStdout, ["ok"]);
     assert.deepEqual(observedStderr, ["warn"]);
   } finally {
@@ -210,7 +210,7 @@ test("docker runtime reports timeout outcome", async () => {
       loggingContext: {
         eventId: "evt-2",
         eventType: "issues",
-        logDirectory: path.join(workspaceRoot, "log", "run", "octocat", "demo", "issues", "evt-2"),
+        logDirectory: path.join(workspaceRoot, "log", "run", "octocat", "demo", "evt-2"),
         owner: "octocat",
         repo: "demo",
       },
@@ -223,7 +223,7 @@ test("docker runtime reports timeout outcome", async () => {
       stderr: "timeout",
       stdout: "",
     });
-    assert.equal(await fs.readFile(path.join(workspaceRoot, "log", "run", "octocat", "demo", "issues", "evt-2", "stderr.log"), "utf8"), "timeout");
+    assert.equal(await fs.readFile(path.join(workspaceRoot, "log", "run", "octocat", "demo", "evt-2", "stderr.log"), "utf8"), "timeout");
   } finally {
     await fs.rm(workspaceRoot, { recursive: true, force: true });
   }

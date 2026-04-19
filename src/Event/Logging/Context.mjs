@@ -100,7 +100,7 @@ export default class Github_Flows_Event_Logging_Context {
       const { owner, repo } = extractIdentity(asRecord(payload).repository);
       const eventType = extractEventType(headers, payload);
       const eventId = extractEventId(headers, payload, nowFactory, randomIntFactory);
-      const logDirectory = pathModule.resolve(runtime.workspaceRoot, ...LOG_BRANCH, owner, repo, eventType, eventId);
+      const logDirectory = pathModule.resolve(runtime.workspaceRoot, ...LOG_BRANCH, owner, repo, eventId);
 
       return {
         eventId,

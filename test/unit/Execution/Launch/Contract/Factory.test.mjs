@@ -10,7 +10,7 @@ test("launch contract factory creates fully resolved contract from explicit prof
     loggingContext: {
       eventId: "evt-1",
       eventType: "issues",
-      logDirectory: "/tmp/github-flows/log/run/octocat/demo/issues/evt-1",
+      logDirectory: "/tmp/github-flows/log/run/octocat/demo/evt-1",
       owner: "octocat",
       repo: "demo",
     },
@@ -77,7 +77,7 @@ test("launch contract factory fails when explicit fields are missing", () => {
     loggingContext: {
       eventId: "evt-1",
       eventType: "issues",
-      logDirectory: "/tmp/github-flows/log/run/octocat/demo/issues/evt-1",
+      logDirectory: "/tmp/github-flows/log/run/octocat/demo/evt-1",
       owner: "octocat",
       repo: "demo",
     },

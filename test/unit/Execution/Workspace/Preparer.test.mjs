@@ -62,7 +62,7 @@ test("workspace preparer creates execution workspace and clones repository from 
       loggingContext: {
         eventId: "evt-42",
         eventType: "pull_request_opened",
-        logDirectory: path.resolve(workspaceRoot, "log", "run", "octocat", "demo", "pull_request_opened", "evt-42"),
+        logDirectory: path.resolve(workspaceRoot, "log", "run", "octocat", "demo", "evt-42"),
         owner: "octocat",
         repo: "demo",
       },

@@ -33,7 +33,7 @@ function createContext({ body = "{}", path = "/webhooks/github", secret = "share
   const loggingContext = {
     eventId: "delivery-123",
     eventType: "issues",
-    logDirectory: "/tmp/github-flows/log/run/octocat/demo/issues/delivery-123",
+    logDirectory: "/tmp/github-flows/log/run/octocat/demo/delivery-123",
     owner: "octocat",
     repo: "demo",
   };
@@ -228,7 +228,7 @@ test("webhook handler resolves event attributes before profile selection", async
     loggingContext: {
       eventId: "delivery-123",
       eventType: "issues",
-      logDirectory: "/tmp/github-flows/log/run/octocat/demo/issues/delivery-123",
+      logDirectory: "/tmp/github-flows/log/run/octocat/demo/delivery-123",
       owner: "octocat",
       repo: "demo",
     },
@@ -244,7 +244,7 @@ test("webhook handler resolves event attributes before profile selection", async
     loggingContext: {
       eventId: "delivery-123",
       eventType: "issues",
-      logDirectory: "/tmp/github-flows/log/run/octocat/demo/issues/delivery-123",
+      logDirectory: "/tmp/github-flows/log/run/octocat/demo/delivery-123",
       owner: "octocat",
       repo: "demo",
     },
@@ -254,7 +254,7 @@ test("webhook handler resolves event attributes before profile selection", async
     loggingContext: {
       eventId: "delivery-123",
       eventType: "issues",
-      logDirectory: "/tmp/github-flows/log/run/octocat/demo/issues/delivery-123",
+      logDirectory: "/tmp/github-flows/log/run/octocat/demo/delivery-123",
       owner: "octocat",
       repo: "demo",
     },
@@ -302,7 +302,7 @@ test("webhook handler resolves event attributes before profile selection", async
       loggingContext: {
         eventId: "delivery-123",
         eventType: "issues",
-        logDirectory: "/tmp/github-flows/log/run/octocat/demo/issues/delivery-123",
+        logDirectory: "/tmp/github-flows/log/run/octocat/demo/delivery-123",
         owner: "octocat",
         repo: "demo",
       },
@@ -316,7 +316,7 @@ test("webhook handler resolves event attributes before profile selection", async
       loggingContext: {
         eventId: "delivery-123",
         eventType: "issues",
-        logDirectory: "/tmp/github-flows/log/run/octocat/demo/issues/delivery-123",
+        logDirectory: "/tmp/github-flows/log/run/octocat/demo/delivery-123",
         owner: "octocat",
         repo: "demo",
       },
@@ -573,7 +573,7 @@ test("webhook handler skips execution when no profile matches", async () => {
       loggingContext: {
         eventId: "delivery-123",
         eventType: "issues",
-        logDirectory: "/tmp/github-flows/log/run/octocat/demo/issues/delivery-123",
+        logDirectory: "/tmp/github-flows/log/run/octocat/demo/delivery-123",
         owner: "octocat",
         repo: "demo",
       },

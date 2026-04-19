@@ -62,7 +62,7 @@ test("execution start coordinator prepares workspace and materializes launch con
     loggingContext: {
       eventId: "evt-1",
       eventType: "issues",
-      logDirectory: "/tmp/github-flows/log/run/octocat/demo/issues/evt-1",
+      logDirectory: "/tmp/github-flows/log/run/octocat/demo/evt-1",
       owner: "octocat",
       repo: "demo",
     },
@@ -143,7 +143,7 @@ test("execution start coordinator requires profile runtime image", async () => {
       loggingContext: {
         eventId: "evt-1",
         eventType: "issues",
-        logDirectory: "/tmp/github-flows/log/run/octocat/demo/issues/evt-1",
+        logDirectory: "/tmp/github-flows/log/run/octocat/demo/evt-1",
         owner: "octocat",
         repo: "demo",
       },

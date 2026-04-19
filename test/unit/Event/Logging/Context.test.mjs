@@ -29,7 +29,7 @@ test("event logging context derives archival scope from admitted github event", 
   assert.deepEqual(result, {
     eventId: "delivery-123",
     eventType: "pull_request",
-    logDirectory: "/tmp/github-flows/log/run/octocat/demo/pull_request/delivery-123",
+    logDirectory: "/tmp/github-flows/log/run/octocat/demo/delivery-123",
     owner: "octocat",
     repo: "demo",
   });
@@ -57,5 +57,5 @@ test("event logging context falls back to generated event id when delivery heade
   });
 
   assert.equal(result.eventId, "260406-080910-0042");
-  assert.equal(result.logDirectory, "/tmp/github-flows/log/run/octocat/demo/issues/260406-080910-0042");
+  assert.equal(result.logDirectory, "/tmp/github-flows/log/run/octocat/demo/260406-080910-0042");
 });
