@@ -39,9 +39,10 @@
   "files": [
     "ai/",
     "CHANGELOG.md",
-    "src/",
+    "docs/",
     "LICENSE",
     "README.md",
+    "src/",
     "types.d.ts"
   ],
   "teqfw": {

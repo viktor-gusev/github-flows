@@ -1,7 +1,7 @@
 # Root Level
 
 - Path: `AGENTS.md`
-- Template Version: `20260327`
+- Template Version: `20260420`
 
 ## Purpose
 
@@ -35,6 +35,17 @@ This level does NOT define:
 A project consists of two interconnected spaces: the **Cognitive Context** (located in `./ctx/`) and the **Software Product** (all files outside `ctx/`); the context governs modifications of the product, and the product reflects application of the context.
 
 The cognitive context may exist as a standalone repository but MUST be mounted under `./ctx/` for execution. The location `./ctx/` is the canonical execution location of the cognitive context.
+
+### Published Product Documentation
+
+The software product MAY include published documentation distributed with the product.
+
+When present:
+
+- `./ai/` denotes agent-facing product documentation.
+- `./docs/` denotes human-facing product documentation.
+
+Such documentation belongs to the software product, not to the cognitive context, and MUST NOT replace or redefine `./ctx/`.
 
 ### Interaction Model
 
