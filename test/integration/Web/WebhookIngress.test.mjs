@@ -17,11 +17,15 @@ const projectRoot = path.resolve(__dirname, "../../..");
 const installFakeGh = async function (workspaceRoot) {
   const binDir = path.join(workspaceRoot, "bin");
   const scriptPath = path.join(binDir, "gh");
+  const stateDir = path.join(workspaceRoot, "fake-bin-state");
   await fs.mkdir(binDir, { recursive: true });
+  await fs.mkdir(stateDir, { recursive: true });
   await fs.writeFile(
     scriptPath,
     `#!/usr/bin/env bash
 set -euo pipefail
+ state_dir="\${FAKE_BIN_STATE_DIR:?}"
+printf 'gh %s\\n' "$*" >> "$state_dir/commands.log"
 if [ "$1" = "repo" ] && [ "$2" = "clone" ]; then
   target="$4"
   mkdir -p "$target/.git"
@@ -38,11 +42,15 @@ exit 1
 const installFakeGit = async function (workspaceRoot) {
   const binDir = path.join(workspaceRoot, "bin");
   const scriptPath = path.join(binDir, "git");
+  const stateDir = path.join(workspaceRoot, "fake-bin-state");
   await fs.mkdir(binDir, { recursive: true });
+  await fs.mkdir(stateDir, { recursive: true });
   await fs.writeFile(
     scriptPath,
     `#!/usr/bin/env bash
 set -euo pipefail
+ state_dir="\${FAKE_BIN_STATE_DIR:?}"
+printf 'git %s\\n' "$*" >> "$state_dir/commands.log"
 if [ "$1" = "clone" ] && [ "$2" = "--no-hardlinks" ]; then
   target="$4"
   mkdir -p "$target/.git"
@@ -56,6 +64,15 @@ if [ "$1" = "-C" ] && [ "$3" = "remote" ] && [ "$4" = "set-url" ] && [ "$5" = "o
   exit 0
 fi
 if [ "$1" = "-C" ] && [ "$3" = "pull" ]; then
+  lock_file="$state_dir/pull.lock"
+  entered_file="$state_dir/pull.entered"
+  release_file="$state_dir/pull.release"
+  if [ -f "$lock_file" ]; then
+    printf '%s\\n' "$2" >> "$entered_file"
+    while [ ! -f "$release_file" ]; do
+      sleep 0.05
+    done
+  fi
   exit 0
 fi
 exit 1
@@ -160,10 +177,12 @@ const createSignature = function (secret, body) {
 test("webhook ingress is served on the static GitHub webhook path", { concurrency: false, timeout: 5000 }, async () => {
   const container = await createContainer();
   const workspaceRoot = await fs.mkdtemp(path.join(os.tmpdir(), "github-flows-"));
+  const fakeStateDir = path.join(workspaceRoot, "fake-bin-state");
   const fakeGhDir = await installFakeGh(workspaceRoot);
   const fakeGitDir = await installFakeGit(workspaceRoot);
   const fakeDockerDir = await installFakeDocker(workspaceRoot);
   const originalPath = process.env.PATH;
+  const originalStateDir = process.env.FAKE_BIN_STATE_DIR;
   const providerHolder = await container.get("Github_Flows_Event_Attribute_Provider_Holder$");
   const runtimeFactory = await container.get("Github_Flows_Config_Runtime__Factory$");
   const server = await container.get("Github_Flows_Web_Server$");
@@ -172,11 +191,15 @@ test("webhook ingress is served on the static GitHub webhook path", { concurrenc
   runtimeFactory.configure({
     httpHost: "127.0.0.1",
     httpPort: 0,
+    repoCacheLockPollIntervalMs: 10,
+    repoCacheLockStaleMs: 60000,
+    repoCacheLockTimeoutMs: 3000,
     workspaceRoot,
     webhookSecret: secret,
   });
   runtimeFactory.freeze();
   process.env.PATH = `${fakeDockerDir}:${fakeGitDir}:${fakeGhDir}:${originalPath ?? ""}`;
+  process.env.FAKE_BIN_STATE_DIR = fakeStateDir;
 
   try {
     await writeProfile(workspaceRoot, "issues", {
@@ -396,8 +419,115 @@ test("webhook ingress is served on the static GitHub webhook path", { concurrenc
       issueAuthorLogin: "flancer32",
       repository: "octocat/demo",
     });
+
+    await fs.writeFile(path.join(fakeStateDir, "pull.lock"), "", "utf8");
+
+    const serialBodyOne = JSON.stringify({
+      action: "opened",
+      eventId: "evt-serial-1",
+      issue: {
+        number: 201,
+        title: "Serial issue one",
+      },
+      repository: {
+        id: 1,
+        name: "demo",
+        owner: {
+          login: "octocat",
+        },
+      },
+    });
+    const serialBodyTwo = JSON.stringify({
+      action: "opened",
+      eventId: "evt-serial-2",
+      issue: {
+        number: 202,
+        title: "Serial issue two",
+      },
+      repository: {
+        id: 1,
+        name: "demo",
+        owner: {
+          login: "octocat",
+        },
+      },
+    });
+
+    const firstSerialRequest = sendRequest(address.port, {
+      method: "POST",
+      pathname: "/webhooks/github",
+      body: serialBodyOne,
+      headers: {
+        "x-github-delivery": "evt-serial-1",
+        "x-github-event": "issues",
+        "x-hub-signature-256": createSignature(secret, serialBodyOne),
+      },
+    });
+
+    for (let i = 0; i < 100; i += 1) {
+      try {
+        await fs.stat(path.join(fakeStateDir, "pull.entered"));
+        break;
+      } catch (error) {
+        // @ts-ignore
+        if (error?.code !== "ENOENT") throw error;
+      }
+      await new Promise((resolve) => setTimeout(resolve, 20));
+    }
+
+    let secondSerialSettled = false;
+    const secondSerialRequest = sendRequest(address.port, {
+      method: "POST",
+      pathname: "/webhooks/github",
+      body: serialBodyTwo,
+      headers: {
+        "x-github-delivery": "evt-serial-2",
+        "x-github-event": "issues",
+        "x-hub-signature-256": createSignature(secret, serialBodyTwo),
+      },
+    }).then((value) => {
+      secondSerialSettled = true;
+      return value;
+    });
+
+    await new Promise((resolve) => setTimeout(resolve, 150));
+    assert.equal(secondSerialSettled, false);
+    await fs.writeFile(path.join(fakeStateDir, "pull.release"), "", "utf8");
+
+    const [serialOne, serialTwo] = await Promise.all([firstSerialRequest, secondSerialRequest]);
+    assert.equal(serialOne.statusCode, 202);
+    assert.equal(serialTwo.statusCode, 202);
+    assert.equal(serialOne.body, '{"status":"accepted"}');
+    assert.equal(serialTwo.body, '{"status":"accepted"}');
+
+    const serialCommandsLog = (await fs.readFile(path.join(fakeStateDir, "commands.log"), "utf8"))
+      .trim()
+      .split("\n")
+      .filter(Boolean);
+    const serialOneEvents = (await fs.readFile(path.resolve(workspaceRoot, "log", "run", "octocat", "demo", "evt-serial-1", "events.log"), "utf8"))
+      .trim()
+      .split("\n")
+      .map((line) => JSON.parse(line));
+    const serialTwoEvents = (await fs.readFile(path.resolve(workspaceRoot, "log", "run", "octocat", "demo", "evt-serial-2", "events.log"), "utf8"))
+      .trim()
+      .split("\n")
+      .map((line) => JSON.parse(line));
+
+    assert.equal(
+      serialCommandsLog.filter((line) => line.includes("git -C") && line.includes(" pull ")).length >= 3,
+      true,
+    );
+    assert.ok(serialOneEvents.some((entry) => entry.action === "workspace-prepared"));
+    assert.ok(serialTwoEvents.some((entry) => entry.action === "workspace-prepared"));
+    await assert.doesNotReject(
+      fs.stat(path.resolve(workspaceRoot, "ws", "octocat", "demo", "issues", "evt-serial-1", "repo", ".git")),
+    );
+    await assert.doesNotReject(
+      fs.stat(path.resolve(workspaceRoot, "ws", "octocat", "demo", "issues", "evt-serial-2", "repo", ".git")),
+    );
   } finally {
     providerHolder.set(undefined);
+    process.env.FAKE_BIN_STATE_DIR = originalStateDir;
     process.env.PATH = originalPath;
     await server.stop();
     await fs.rm(workspaceRoot, { recursive: true, force: true });

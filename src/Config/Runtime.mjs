@@ -10,6 +10,15 @@ export class Data {
   /** @type {number} */
   httpPort;
 
+  /** @type {number} */
+  repoCacheLockPollIntervalMs;
+
+  /** @type {number} */
+  repoCacheLockStaleMs;
+
+  /** @type {number} */
+  repoCacheLockTimeoutMs;
+
   /** @type {Fl32_Web_Back_Config_Runtime} */
   webConfig;
 
@@ -46,6 +55,15 @@ export class Factory {
       if (params.httpPort !== undefined && cfg.httpPort === undefined) {
         cfg.httpPort = params.httpPort;
       }
+      if (params.repoCacheLockPollIntervalMs !== undefined && cfg.repoCacheLockPollIntervalMs === undefined) {
+        cfg.repoCacheLockPollIntervalMs = params.repoCacheLockPollIntervalMs;
+      }
+      if (params.repoCacheLockStaleMs !== undefined && cfg.repoCacheLockStaleMs === undefined) {
+        cfg.repoCacheLockStaleMs = params.repoCacheLockStaleMs;
+      }
+      if (params.repoCacheLockTimeoutMs !== undefined && cfg.repoCacheLockTimeoutMs === undefined) {
+        cfg.repoCacheLockTimeoutMs = params.repoCacheLockTimeoutMs;
+      }
       if (params.workspaceRoot !== undefined && cfg.workspaceRoot === undefined) {
         cfg.workspaceRoot = params.workspaceRoot;
       }
@@ -61,6 +79,9 @@ export class Factory {
 
       if (cfg.httpHost === undefined) cfg.httpHost = "127.0.0.1";
       if (cfg.httpPort === undefined) cfg.httpPort = 3000;
+      if (cfg.repoCacheLockPollIntervalMs === undefined) cfg.repoCacheLockPollIntervalMs = 1000;
+      if (cfg.repoCacheLockTimeoutMs === undefined) cfg.repoCacheLockTimeoutMs = 60000;
+      if (cfg.repoCacheLockStaleMs === undefined) cfg.repoCacheLockStaleMs = 600000;
 
       if (cfg.workspaceRoot === undefined) {
         throw new Error("Missing required runtime configuration field: workspaceRoot");
