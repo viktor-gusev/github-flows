@@ -2,7 +2,7 @@
 
 `@teqfw/github-flows` is a TeqFW library for GitHub webhook driven agent execution.
 
-It accepts GitHub webhooks on a fixed ingress, derives event attributes, resolves zero or one effective profile from `workspaceRoot/cfg/`, and starts at most one isolated execution for each admitted event.
+It accepts GitHub webhooks on a fixed ingress, builds one admitted-event model, derives package-owned base attributes from it, resolves zero or one effective profile from `workspaceRoot/cfg/`, and starts at most one isolated execution for each admitted event.
 
 It is not a standalone application. The host application owns process lifecycle, runtime infrastructure, and startup orchestration.
 
@@ -30,8 +30,8 @@ For human-facing reading, start here:
 The package:
 
 - accepts GitHub webhook requests only on `/webhooks/github`
-- derives package-owned event attributes
-- may ask the host for additional attributes for the current admitted event
+- builds one admitted-event model and derives package-owned base attributes from it
+- may ask the host for additional event attributes for the current admitted event
 - resolves candidate profiles from `workspaceRoot/cfg/`
 - selects zero or one effective execution profile
 - delegates the permitted execution to the host runtime boundary
@@ -81,10 +81,14 @@ When the host environment provides `GH_TOKEN` or `GITHUB_TOKEN`, the package use
 The optional host-provided attribute provider must implement:
 
 ```js
-async getAttributes({ headers, loggingContext, payload })
+async getAttributes({ eventModel, headers, loggingContext, payload })
 ```
 
 It returns additional attributes for the current admitted event only and does not return execution permission.
+
+Use `eventModel` as the preferred source for package-owned base attributes such as `event`, `action`, `repository`, and `actorLogin`.
+
+Keep using raw `payload` for business-specific GitHub event facts that the package does not normalize.
 
 ## Release Contents
 

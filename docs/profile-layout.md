@@ -48,7 +48,7 @@ Typical use:
 
 ## Matching Model
 
-Candidate profiles are matched against event attributes.
+Candidate profiles are matched against the current event attribute set.
 
 Selection rules:
 

@@ -32,10 +32,14 @@ Optional fields:
 It exposes one asynchronous method:
 
 ```js
-async getAttributes({headers, loggingContext, payload})
+async getAttributes({eventModel, headers, loggingContext, payload})
 ```
 
-The provider returns additional attributes for the current admitted event only.
+The provider returns host-provided additional event attributes for the current admitted event only.
+
+`eventModel` is the preferred source for package-owned base attributes.
+
+`payload` remains available for business-specific event facts that are outside the package-owned normalized model.
 
 ## Provider Holder
 
@@ -52,4 +56,4 @@ The host may register at most one provider for the application lifetime.
 
 `Github_Flows_Web_Handler_Webhook` is the public handler for the fixed ingress path `/webhooks/github`.
 
-It admits GitHub webhook requests, derives event attributes, resolves a profile, and starts execution only when a profile is selected.
+It admits GitHub webhook requests, builds one admitted-event model, resolves the event attribute set, resolves a profile, and starts execution only when a profile is selected.

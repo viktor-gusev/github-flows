@@ -78,8 +78,8 @@ await app.execute();
 Notes:
 
 - register the provider once during startup;
-- prefer `eventModel` for normalized package-owned facts;
+- prefer `eventModel` for package-owned base attributes;
 - use raw `payload` for business-specific event facts that the package does not normalize;
-- return additional attributes only;
+- return host-provided additional event attributes only;
 - let the package handle profile matching and execution permission;
 - skip the provider entirely if the host does not need extra event attributes.

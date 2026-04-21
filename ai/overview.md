@@ -13,7 +13,8 @@ Summarizes the public role of `@teqfw/github-flows` for agents and host applicat
 
 - exposes a fixed GitHub webhook ingress at `/webhooks/github`;
 - admits webhook events for package-owned evaluation;
-- may request additional event attributes from the host for the current admitted event;
+- builds one admitted-event model for each admitted event;
+- may request host-provided additional event attributes for the current admitted event;
 - resolves zero or one effective execution profile;
 - delegates the permitted execution to the host runtime boundary;
 - records event-scoped archival logs for admitted events;

@@ -7,14 +7,16 @@
 
 - The host may register at most one `Github_Flows_Event_Attribute_Provider`.
 - The provider is optional.
-- The provider returns additional attributes only.
+- The provider returns host-provided additional event attributes only.
 - The package decides whether an admitted event yields one effective execution profile.
 
 ## Provider Rules
 
-- The provider must expose `getAttributes({headers, loggingContext, payload})`.
+- The provider must expose `getAttributes({eventModel, headers, loggingContext, payload})`.
 - The provider must not return `allow`, `deny`, or any equivalent execution decision.
 - The provider must not override package-owned base event attributes.
+- The provider should prefer `eventModel` for package-owned base attributes.
+- The provider may use raw `payload` for business-specific GitHub event facts outside the normalized package-owned model.
 - The provider should be registered during host startup before the web server begins serving requests.
 
 ## Runtime Rules
@@ -28,7 +30,7 @@
 
 ## Boundary Rules
 
-- The host may contribute attributes.
+- The host may contribute additional event attributes.
 - The package owns selection and launch permission.
 - Events with no selected profile are skipped.
 - The package does not become a host-controlled validation engine.

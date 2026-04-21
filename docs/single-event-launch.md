@@ -8,12 +8,14 @@ This guide shows how to configure one isolated agent run for one admitted GitHub
 
 For one event, the package:
 
-1. derives event attributes
-2. optionally asks the host for additional attributes
+1. derives package-owned base attributes from the admitted-event model
+2. optionally asks the host for additional event attributes
 3. scans `workspaceRoot/cfg/` for `profile.json` fragments
 4. builds candidate profiles by hierarchical merge
 5. selects the most specific matching profile
 6. starts one execution if a profile was selected
+
+Before step 1, the package admits the webhook request and builds one admitted-event model. Package-owned base attributes are derived from that model; host-provided additional attributes may still come from the raw payload through the optional host provider.
 
 If no profile matches, the event is ignored.
 
@@ -90,7 +92,7 @@ Keep `trigger` focused on stable routing signals:
 - `repository`
 - `event`
 - `action`
-- optional host-provided attributes for the current event
+- optional host-provided additional attributes for the current event
 
 Avoid embedding branching logic inside one profile. If two event situations need different behavior, create two profiles.
 

@@ -78,7 +78,7 @@ This keeps orchestration outside the package internals and aligned with native G
 - keep one profile per event-stage
 - make the next step observable as a normal GitHub event whenever possible
 - keep cross-stage design outside package internals and outside profile logic
-- use host-provided attributes only to expose missing event facts
+- use host-provided additional attributes only to expose missing event facts
 
 ## What Not To Do
 

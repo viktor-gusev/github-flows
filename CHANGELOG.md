@@ -2,6 +2,24 @@
 
 All notable changes to `@teqfw/github-flows` will be documented in this file.
 
+## 0.3.0 - 2026-04-21
+
+Release focused on admitted-event normalization and published package guidance.
+
+### Added
+
+- canonical admitted-event model construction with package-owned base attributes `event`, `repository`, `action`, and optional `actorLogin`;
+- explicit `Github_Flows_Event_Model_Builder` package component and public TypeScript declarations for the admitted-event model;
+- human-facing package documentation under `docs/` for overview, single-event setup, profile layout, event attributes, and event chains;
+- unit and integration coverage for admitted-event model construction, attribute resolution, webhook handling, and ingress behavior.
+
+### Changed
+
+- `Github_Flows_Event_Attribute_Provider` now receives `getAttributes({ eventModel, headers, loggingContext, payload })`, where `eventModel` is the preferred source for package-owned base attributes and `payload` remains available for business-specific GitHub facts;
+- webhook handling now builds the admitted-event model before logging-context creation and profile matching, so event-scoped logging and attribute resolution use one canonical package-owned event shape;
+- event logging context now derives repository identity, event type, and delivery-based event id from the admitted-event model;
+- published `README.md`, `docs/`, and `ai/` documentation now use the same terminology for package-owned base attributes versus host-provided additional event attributes.
+
 ## 0.2.0 - 2026-04-19
 
 Release focused on repository-scoped event traceability and host-side Git authentication.

@@ -2,7 +2,7 @@
 
 `@teqfw/github-flows` is a TeqFW library for GitHub webhook driven agent execution.
 
-It accepts GitHub webhooks on a fixed ingress, derives event attributes, resolves zero or one effective profile from `workspaceRoot/cfg/`, and starts at most one isolated execution for each admitted event.
+It accepts GitHub webhooks on a fixed ingress, builds one admitted-event model, derives package-owned base attributes from it, resolves zero or one effective profile from `workspaceRoot/cfg/`, and starts at most one isolated execution for each admitted event.
 
 This package is not a standalone application. The host application owns process lifecycle, runtime infrastructure, and startup orchestration.
 
@@ -10,7 +10,7 @@ This package is not a standalone application. The host application owns process 
 
 The package handles one event at a time:
 
-`GitHub event -> event attributes -> matching profile -> launch contract -> one isolated run`
+`GitHub event -> admitted-event model -> package-owned base attributes + optional host-provided additional attributes -> matching profile -> launch contract -> one isolated run`
 
 Important boundaries:
 
