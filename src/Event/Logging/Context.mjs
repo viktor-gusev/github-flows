@@ -1,7 +1,7 @@
 // @ts-check
 /**
  * @namespace Github_Flows_Event_Logging_Context
- * @description Builds event-scoped logging context for one admitted GitHub event.
+ * @description Builds event-scoped logging context for one admitted event model.
  */
 const LOG_BRANCH = ["log", "run"];
 
@@ -26,23 +26,15 @@ function buildFallbackEventId(nowFactory, randomIntFactory) {
   return `${yy}${mm}${dd}-${hh}${mi}${ss}-${rand}`;
 }
 
-function asRecord(value) {
-  if (value && (typeof value === "object") && !Array.isArray(value)) {
-    return /** @type {Record<string, unknown>} */ (value);
-  }
-  return {};
-}
-
 function extractIdentity(repository) {
-  const repo = asRecord(repository);
-  const owner = asRecord(repo.owner).login;
-  const name = repo.name;
+  const owner = repository.ownerLogin;
+  const name = repository.name;
 
   if ((typeof owner !== "string") || owner.length === 0) {
-    throw new Error("GitHub repository owner login is missing in event payload.");
+    throw new Error("GitHub repository owner login is missing in admitted event model.");
   }
   if ((typeof name !== "string") || name.length === 0) {
-    throw new Error("GitHub repository name is missing in event payload.");
+    throw new Error("GitHub repository name is missing in admitted event model.");
   }
 
   return {
@@ -51,25 +43,14 @@ function extractIdentity(repository) {
   };
 }
 
-function extractEventType(headers, payload) {
-  const eventHeader = headers["x-github-event"];
-  const body = asRecord(payload);
-  const value = typeof eventHeader === "string"
-    ? eventHeader
-    : body.event_type ?? body.eventType ?? body.type ?? body.action;
-  return sanitizePathSegment(typeof value === "string" ? value : "event", "event");
+function extractEventType(eventModel) {
+  return sanitizePathSegment(eventModel.event, "event");
 }
 
-function extractEventId(headers, payload, nowFactory, randomIntFactory) {
-  const deliveryHeader = headers["x-github-delivery"];
-  if ((typeof deliveryHeader === "string") && deliveryHeader.length > 0) {
-    return sanitizePathSegment(deliveryHeader, "event");
-  }
-
-  const body = asRecord(payload);
-  const value = body.eventId ?? body.event_id ?? body.delivery ?? body.deliveryId ?? body.id;
-  if ((typeof value === "string") || (typeof value === "number")) {
-    return sanitizePathSegment(String(value), "event");
+function extractEventId(eventModel, nowFactory, randomIntFactory) {
+  const deliveryId = eventModel.deliveryId;
+  if (((typeof deliveryId === "string") && deliveryId.length > 0) || (typeof deliveryId === "number")) {
+    return sanitizePathSegment(String(deliveryId), "event");
   }
 
   return buildFallbackEventId(nowFactory, randomIntFactory);
@@ -90,16 +71,13 @@ export default class Github_Flows_Event_Logging_Context {
     runtime,
   }) {
     /**
-     * @param {{
-     *   headers?: Record<string, string | string[] | undefined>,
-     *   payload: unknown,
-     * }} params
+     * @param {Github_Flows_Event_Model__Data} eventModel
      * @returns {Github_Flows_Event_Logging_Context__Data}
      */
-    this.createByGithubEvent = function ({ headers = {}, payload }) {
-      const { owner, repo } = extractIdentity(asRecord(payload).repository);
-      const eventType = extractEventType(headers, payload);
-      const eventId = extractEventId(headers, payload, nowFactory, randomIntFactory);
+    this.createByEventModel = function (eventModel) {
+      const { owner, repo } = extractIdentity(eventModel.repository);
+      const eventType = extractEventType(eventModel);
+      const eventId = extractEventId(eventModel, nowFactory, randomIntFactory);
       const logDirectory = pathModule.resolve(runtime.workspaceRoot, ...LOG_BRANCH, owner, repo, eventId);
 
       return {

@@ -3,7 +3,6 @@
  * @namespace Github_Flows_Event_Attribute_Resolver
  * @description Resolves the event attribute set used for profile matching, including optional host-provided additional attributes.
  */
-// Helper functions for attribute normalization.
 /**
  * @param {unknown} value
  * @returns {Record<string, unknown>}
@@ -13,43 +12,6 @@ function asRecord(value) {
     return /** @type {Record<string, unknown>} */ (value);
   }
   return {};
-}
-
-/**
- * @param {unknown} payload
- * @returns {string | undefined}
- */
-function toRepositoryName(payload) {
-  const body = asRecord(payload);
-  const repository = asRecord(body.repository);
-  const repositoryOwner = asRecord(repository.owner);
-
-  if (typeof repository.full_name === "string") {
-    return repository.full_name;
-  }
-
-  if ((typeof repositoryOwner.login === "string") && (typeof repository.name === "string")) {
-    return `${repositoryOwner.login}/${repository.name}`;
-  }
-
-  return undefined;
-}
-
-/**
- * @param {{
- *   headers: Record<string, string | string[] | undefined>,
- *   payload: unknown
- * }} params
- * @returns {{ action: string | undefined, event: string | undefined, repository: string | undefined }}
- */
-function buildBaseAttributes({ headers, payload }) {
-  const body = asRecord(payload);
-
-  return {
-    action: typeof body.action === "string" ? body.action : undefined,
-    event: typeof headers["x-github-event"] === "string" ? headers["x-github-event"] : undefined,
-    repository: toRepositoryName(payload),
-  };
 }
 
 /**
@@ -86,6 +48,7 @@ function normalizeAdditionalAttributes(baseAttributes, providedAttributes = {}) 
 export default class Github_Flows_Event_Attribute_Resolver {
   /**
    * @param {object} deps
+   * @param {Github_Flows_Event_Model_Builder} deps.eventModelBuilder
    * @param {Github_Flows_Event_Attribute_Provider_Holder} deps.eventAttributeProviderHolder
    * @param {{ logComponentAction?: (entry: {
    *   action: string,
@@ -94,21 +57,36 @@ export default class Github_Flows_Event_Attribute_Resolver {
    *   message: string
    * }) => void }} [deps.logger]
    */
-  constructor({ eventAttributeProviderHolder, logger }) {
+  constructor({ eventAttributeProviderHolder, eventModelBuilder, logger }) {
     /**
      * @param {{
+     *   eventModel?: Github_Flows_Event_Model__Data,
      *   headers?: Record<string, string | string[] | undefined>,
      *   loggingContext?: Github_Flows_Event_Logging_Context__Data,
      *   payload: unknown
      * }} params
      * @returns {Promise<Github_Flows_Event_Attribute_Resolver__Result>}
      */
-    this.resolveByGithubEvent = async function ({ headers = {}, loggingContext, payload }) {
-      const baseAttributes = buildBaseAttributes({ headers, payload });
+    this.resolveByGithubEvent = async function ({ eventModel, headers = {}, loggingContext, payload }) {
+      const builtModel = eventModel
+        ? {
+            attributes: Object.fromEntries(
+              Object.entries({
+                action: eventModel.action,
+                actorLogin: eventModel.actorLogin,
+                event: eventModel.event,
+                repository: eventModel.repository.fullName,
+              }).filter(([, value]) => value !== undefined)
+            ),
+            event: eventModel,
+          }
+        : eventModelBuilder.buildByGithubEvent({ headers, payload });
+      const baseAttributes = builtModel.attributes;
       const provider = eventAttributeProviderHolder.get();
       const providerName = provider?.constructor?.name ?? "anonymous";
       const providedAttributes = provider
         ? await provider.getAttributes({
+            eventModel: builtModel.event,
             headers,
             loggingContext,
             payload,
@@ -127,6 +105,7 @@ export default class Github_Flows_Event_Attribute_Resolver {
           additionalAttributes,
           baseAttributes,
           eventAttributes,
+          eventModel: builtModel.event,
           eventId: loggingContext?.eventId,
           providerUsed: Boolean(provider),
           providerName: provider ? providerName : null,
@@ -140,6 +119,7 @@ export default class Github_Flows_Event_Attribute_Resolver {
         additionalAttributes,
         baseAttributes,
         eventAttributes,
+        eventModel: builtModel.event,
         providerUsed: Boolean(provider),
       };
     };
@@ -149,6 +129,7 @@ export default class Github_Flows_Event_Attribute_Resolver {
 export const __deps__ = Object.freeze({
   default: Object.freeze({
     eventAttributeProviderHolder: "Github_Flows_Event_Attribute_Provider_Holder$",
+    eventModelBuilder: "Github_Flows_Event_Model_Builder$",
     logger: "Github_Flows_Logger$",
   }),
 });

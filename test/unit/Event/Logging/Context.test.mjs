@@ -4,7 +4,7 @@ import test from "node:test";
 
 import Github_Flows_Event_Logging_Context from "../../../../src/Event/Logging/Context.mjs";
 
-test("event logging context derives archival scope from admitted github event", () => {
+test("event logging context derives archival scope from admitted event model", () => {
   const factory = new Github_Flows_Event_Logging_Context({
     nowFactory: () => new Date("2026-04-06T08:09:10.000Z"),
     pathModule: path,
@@ -12,17 +12,15 @@ test("event logging context derives archival scope from admitted github event", 
     runtime: { workspaceRoot: "/tmp/github-flows" },
   });
 
-  const result = factory.createByGithubEvent({
-    headers: {
-      "x-github-delivery": "delivery-123",
-      "x-github-event": "pull_request",
-    },
-    payload: {
-      action: "opened",
-      repository: {
-        name: "demo",
-        owner: { login: "octocat" },
-      },
+  const result = factory.createByEventModel({
+    action: "opened",
+    actorLogin: "flancer64",
+    deliveryId: "delivery-123",
+    event: "pull_request",
+    repository: {
+      fullName: "octocat/demo",
+      name: "demo",
+      ownerLogin: "octocat",
     },
   });
 
@@ -35,7 +33,7 @@ test("event logging context derives archival scope from admitted github event", 
   });
 });
 
-test("event logging context falls back to generated event id when delivery header is missing", () => {
+test("event logging context falls back to generated event id when event model delivery id is missing", () => {
   const factory = new Github_Flows_Event_Logging_Context({
     nowFactory: () => new Date("2026-04-06T08:09:10.000Z"),
     pathModule: path,
@@ -43,16 +41,15 @@ test("event logging context falls back to generated event id when delivery heade
     runtime: { workspaceRoot: "/tmp/github-flows" },
   });
 
-  const result = factory.createByGithubEvent({
-    headers: {
-      "x-github-event": "issues",
-    },
-    payload: {
-      action: "opened",
-      repository: {
-        name: "demo",
-        owner: { login: "octocat" },
-      },
+  const result = factory.createByEventModel({
+    action: "opened",
+    actorLogin: undefined,
+    deliveryId: undefined,
+    event: "issues",
+    repository: {
+      fullName: "octocat/demo",
+      name: "demo",
+      ownerLogin: "octocat",
     },
   });
 

@@ -46,6 +46,7 @@ export default class Github_Flows_Web_Handler_Webhook {
   /**
    * @param {object} deps
    * @param {Github_Flows_Event_Attribute_Resolver} deps.eventAttributeResolver
+   * @param {Github_Flows_Event_Model_Builder} deps.eventModelBuilder
    * @param {Github_Flows_Web_Handler_Webhook_EventLog} deps.eventLog
    * @param {Github_Flows_Event_Logging_Context} deps.eventLoggingContext
    * @param {Github_Flows_Execution_Profile_Resolver} deps.executionProfileResolver
@@ -53,7 +54,7 @@ export default class Github_Flows_Web_Handler_Webhook {
    * @param {Github_Flows_Config_Runtime} deps.runtime
    * @param {Github_Flows_Web_Handler_Webhook_Signature} deps.signature
    */
-  constructor({ eventAttributeResolver, eventLog, eventLoggingContext, executionProfileResolver, executionStartCoordinator, runtime, signature }) {
+  constructor({ eventAttributeResolver, eventLog, eventLoggingContext, eventModelBuilder, executionProfileResolver, executionStartCoordinator, runtime, signature }) {
     /**
      * @returns {Github_Flows_Web_Handler_Webhook__Info}
      */
@@ -108,10 +109,11 @@ export default class Github_Flows_Web_Handler_Webhook {
       }
 
       try {
-        const loggingContext = eventLoggingContext.createByGithubEvent({
+        const admittedEvent = eventModelBuilder.buildByGithubEvent({
           headers: request.headers,
           payload,
         });
+        const loggingContext = eventLoggingContext.createByEventModel(admittedEvent.event);
         await eventLog.persistEventSnapshot({
           headers: request.headers,
           loggingContext,
@@ -133,7 +135,7 @@ export default class Github_Flows_Web_Handler_Webhook {
         });
 
         const attributeResolution = await eventAttributeResolver.resolveByGithubEvent({
-          headers: request.headers,
+          eventModel: admittedEvent.event,
           loggingContext,
           payload,
         });
@@ -219,6 +221,7 @@ export const __deps__ = Object.freeze({
     eventAttributeResolver: "Github_Flows_Event_Attribute_Resolver$",
     eventLog: "Github_Flows_Web_Handler_Webhook_EventLog$",
     eventLoggingContext: "Github_Flows_Event_Logging_Context$",
+    eventModelBuilder: "Github_Flows_Event_Model_Builder$",
     executionProfileResolver: "Github_Flows_Execution_Profile_Resolver$",
     executionStartCoordinator: "Github_Flows_Execution_Start_Coordinator$",
     runtime: "Github_Flows_Config_Runtime$",

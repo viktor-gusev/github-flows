@@ -157,13 +157,14 @@ const createSignature = function (secret, body) {
   return `sha256=${digest}`;
 };
 
-test("webhook ingress is served on the static GitHub webhook path", { timeout: 5000 }, async () => {
+test("webhook ingress is served on the static GitHub webhook path", { concurrency: false, timeout: 5000 }, async () => {
   const container = await createContainer();
   const workspaceRoot = await fs.mkdtemp(path.join(os.tmpdir(), "github-flows-"));
   const fakeGhDir = await installFakeGh(workspaceRoot);
   const fakeGitDir = await installFakeGit(workspaceRoot);
   const fakeDockerDir = await installFakeDocker(workspaceRoot);
   const originalPath = process.env.PATH;
+  const providerHolder = await container.get("Github_Flows_Event_Attribute_Provider_Holder$");
   const runtimeFactory = await container.get("Github_Flows_Config_Runtime__Factory$");
   const server = await container.get("Github_Flows_Web_Server$");
   const secret = "shared-secret";
@@ -228,6 +229,7 @@ test("webhook ingress is served on the static GitHub webhook path", { timeout: 5
       pathname: "/webhooks/github",
       body: validBody,
       headers: {
+        "x-github-delivery": "evt-1",
         "x-github-event": "issues",
         "x-hub-signature-256": createSignature(secret, validBody),
       },
@@ -238,6 +240,7 @@ test("webhook ingress is served on the static GitHub webhook path", { timeout: 5
       pathname: "/missing",
       body: validBody,
       headers: {
+        "x-github-delivery": "evt-1",
         "x-github-event": "issues",
         "x-hub-signature-256": createSignature(secret, validBody),
       },
@@ -248,6 +251,7 @@ test("webhook ingress is served on the static GitHub webhook path", { timeout: 5
       pathname: "/webhooks/github",
       body: validBody,
       headers: {
+        "x-github-delivery": "evt-1",
         "x-github-event": "issues",
         "x-hub-signature-256": createSignature("wrong-secret", validBody),
       },
@@ -298,7 +302,102 @@ test("webhook ingress is served on the static GitHub webhook path", { timeout: 5
       await fs.readFile(path.resolve(eventScope, "stderr.log"), "utf8"),
       "",
     );
+
+    providerHolder.set({
+      async getAttributes({ eventModel, payload }) {
+        const body = /** @type {Record<string, unknown>} */ (payload ?? {});
+        const issue = /** @type {Record<string, unknown>} */ (body.issue ?? {});
+        const issueUser = /** @type {Record<string, unknown>} */ (issue.user ?? {});
+        return {
+          actorScope: eventModel.actorLogin,
+          issueAuthorLogin: typeof issueUser.login === "string" ? issueUser.login : undefined,
+        };
+      },
+    });
+    await writeProfile(workspaceRoot, "issues-mixed", {
+      trigger: {
+        event: "issues",
+        repository: "octocat/demo",
+        action: "opened",
+        actorScope: "flancer64",
+        issueAuthorLogin: "flancer32",
+      },
+      execution: {
+        handler: {
+          type: "codex",
+          command: ["node"],
+          args: [],
+          promptRef: "default.md",
+          promptVariables: {
+            ISSUE_TITLE: "event.issue.title",
+          },
+        },
+        runtime: {
+          type: "docker",
+          dockerArgs: [],
+          image: "profile-image",
+          setupScript: "true",
+          env: {},
+          timeoutSec: 30,
+        },
+      },
+    });
+    await writePrompt(workspaceRoot, path.join("issues-mixed", "default.md"), "Issue {{ISSUE_TITLE}} prepared.");
+
+    const mixedBody = JSON.stringify({
+      action: "opened",
+      eventId: "evt-mixed-1",
+      issue: {
+        number: 108,
+        title: "Mixed source issue",
+        user: {
+          login: "flancer32",
+        },
+      },
+      repository: {
+        id: 1,
+        name: "demo",
+        owner: {
+          login: "octocat",
+        },
+      },
+      sender: {
+        login: "flancer64",
+      },
+    });
+    const mixed = await sendRequest(address.port, {
+      method: "POST",
+      pathname: "/webhooks/github",
+      body: mixedBody,
+      headers: {
+        "x-github-delivery": "evt-mixed-1",
+        "x-github-event": "issues",
+        "x-hub-signature-256": createSignature(secret, mixedBody),
+      },
+    });
+
+    assert.equal(mixed.statusCode, 202);
+    assert.equal(mixed.body, '{"status":"accepted"}');
+
+    const mixedScope = path.resolve(workspaceRoot, "log", "run", "octocat", "demo", "evt-mixed-1");
+    const mixedProfile = JSON.parse(await fs.readFile(path.resolve(mixedScope, "effective-profile.json"), "utf8"));
+    const mixedEventsLog = (await fs.readFile(path.resolve(mixedScope, "events.log"), "utf8"))
+      .trim()
+      .split("\n")
+      .map((line) => JSON.parse(line));
+    const mixedDecisionTrace = mixedEventsLog.find((entry) => entry.stage === "decision-trace");
+
+    assert.equal(mixedProfile.id, "issues-mixed/profile.json");
+    assert.deepEqual(mixedDecisionTrace?.resolutionInputs, {
+      action: "opened",
+      actorLogin: "flancer64",
+      actorScope: "flancer64",
+      event: "issues",
+      issueAuthorLogin: "flancer32",
+      repository: "octocat/demo",
+    });
   } finally {
+    providerHolder.set(undefined);
     process.env.PATH = originalPath;
     await server.stop();
     await fs.rm(workspaceRoot, { recursive: true, force: true });

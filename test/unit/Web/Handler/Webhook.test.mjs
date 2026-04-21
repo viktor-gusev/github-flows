@@ -30,6 +30,17 @@ function createRequest({ body = "{}", path = "/webhooks/github", secret = "share
 function createContext({ body = "{}", path = "/webhooks/github", secret = "shared-secret" } = {}) {
   const calls = [];
   const eventLogCalls = [];
+  const eventModel = {
+    action: "opened",
+    actorLogin: "flancer64",
+    deliveryId: "delivery-123",
+    event: "issues",
+    repository: {
+      fullName: "octocat/demo",
+      name: "demo",
+      ownerLogin: "octocat",
+    },
+  };
   const loggingContext = {
     eventId: "delivery-123",
     eventType: "issues",
@@ -39,14 +50,31 @@ function createContext({ body = "{}", path = "/webhooks/github", secret = "share
   };
   const startCalls = [];
   const attributeResolveCalls = [];
+  const eventModelBuildCalls = [];
   const profileResolveCalls = [];
 
   return {
     attributeResolveCalls,
     calls,
+    eventModel,
+    eventModelBuildCalls,
     eventLogCalls,
     profileResolveCalls,
     startCalls,
+    eventModelBuilder: {
+      buildByGithubEvent(entry) {
+        eventModelBuildCalls.push(entry);
+        return {
+          attributes: {
+            action: "opened",
+            actorLogin: "flancer64",
+            event: "issues",
+            repository: "octocat/demo",
+          },
+          event: eventModel,
+        };
+      },
+    },
     eventAttributeResolver: {
       async resolveByGithubEvent(entry) {
         attributeResolveCalls.push(entry);
@@ -56,11 +84,14 @@ function createContext({ body = "{}", path = "/webhooks/github", secret = "share
           },
           baseAttributes: {
             action: "opened",
+            actorLogin: "flancer64",
             event: "issues",
             repository: "octocat/demo",
           },
+          eventModel,
           eventAttributes: {
             action: "opened",
+            actorLogin: "flancer64",
             event: "issues",
             issueAuthor: "octocat",
             repository: "octocat/demo",
@@ -90,7 +121,8 @@ function createContext({ body = "{}", path = "/webhooks/github", secret = "share
       },
     },
     eventLoggingContext: {
-      createByGithubEvent() {
+      createByEventModel(entry) {
+        assert.deepEqual(entry, eventModel);
         return loggingContext;
       },
     },
@@ -168,9 +200,10 @@ function createContext({ body = "{}", path = "/webhooks/github", secret = "share
 
 test("webhook handler exposes teq-web handler contract", async () => {
   const handler = new Github_Flows_Web_Handler_Webhook({
+    eventModelBuilder: { buildByGithubEvent: () => ({ attributes: {}, event: {} }) },
     eventAttributeResolver: { resolveByGithubEvent: async () => ({ additionalAttributes: {}, baseAttributes: {}, eventAttributes: {}, providerUsed: false }) },
     eventLog: {},
-    eventLoggingContext: { createByGithubEvent: () => ({}) },
+    eventLoggingContext: { createByEventModel: () => ({}) },
     executionProfileResolver: { resolveByEventAttributes: async () => ({ selectedProfile: null, matchedCandidates: [], applicabilityBasis: null }) },
     executionStartCoordinator: { start: async () => ({ attempted: true, completed: true, exit: "success", stderr: "", stdout: "" }) },
     runtime: { webhookSecret: "shared-secret" },
@@ -194,12 +227,18 @@ test("webhook handler resolves event attributes before profile selection", async
       name: "demo",
       owner: { login: "octocat" },
     },
+    sender: {
+      login: "flancer64",
+    },
   };
   const {
     attributeResolveCalls,
     calls,
     context,
     eventAttributeResolver,
+    eventModel,
+    eventModelBuildCalls,
+    eventModelBuilder,
     eventLog,
     eventLogCalls,
     eventLoggingContext,
@@ -211,6 +250,7 @@ test("webhook handler resolves event attributes before profile selection", async
     body: JSON.stringify(payload),
   });
   const handler = new Github_Flows_Web_Handler_Webhook({
+    eventModelBuilder,
     eventAttributeResolver,
     eventLog,
     eventLoggingContext,
@@ -223,8 +263,12 @@ test("webhook handler resolves event attributes before profile selection", async
   await handler.handle(context);
 
   assert.equal(eventLogCalls[0].method, "logReception");
-  assert.deepEqual(attributeResolveCalls, [{
+  assert.deepEqual(eventModelBuildCalls, [{
     headers: context.request.headers,
+    payload,
+  }]);
+  assert.deepEqual(attributeResolveCalls, [{
+    eventModel,
     loggingContext: {
       eventId: "delivery-123",
       eventType: "issues",
@@ -237,6 +281,7 @@ test("webhook handler resolves event attributes before profile selection", async
   assert.deepEqual(profileResolveCalls, [{
     eventAttributes: {
       action: "opened",
+      actorLogin: "flancer64",
       event: "issues",
       issueAuthor: "octocat",
       repository: "octocat/demo",
@@ -288,11 +333,13 @@ test("webhook handler resolves event attributes before profile selection", async
         },
         baseAttributes: {
           action: "opened",
+          actorLogin: "flancer64",
           event: "issues",
           repository: "octocat/demo",
         },
         eventAttributes: {
           action: "opened",
+          actorLogin: "flancer64",
           event: "issues",
           issueAuthor: "octocat",
           repository: "octocat/demo",
@@ -322,6 +369,7 @@ test("webhook handler resolves event attributes before profile selection", async
       },
       resolutionInputs: {
         action: "opened",
+        actorLogin: "flancer64",
         event: "issues",
         issueAuthor: "octocat",
         repository: "octocat/demo",
@@ -380,11 +428,12 @@ test("webhook handler resolves event attributes before profile selection", async
 });
 
 test("webhook handler rejects invalid signature after reception logging", async () => {
-  const { calls, context, eventAttributeResolver, eventLog, eventLogCalls, executionProfileResolver, profileResolveCalls } = createContext();
+  const { calls, context, eventAttributeResolver, eventLog, eventLogCalls, eventModelBuilder, executionProfileResolver, profileResolveCalls } = createContext();
   const handler = new Github_Flows_Web_Handler_Webhook({
+    eventModelBuilder,
     eventAttributeResolver,
     eventLog,
-    eventLoggingContext: { createByGithubEvent: () => ({}) },
+    eventLoggingContext: { createByEventModel: () => ({}) },
     executionProfileResolver,
     executionStartCoordinator: { start: async () => ({ attempted: true, completed: true, exit: "success", stderr: "", stdout: "" }) },
     runtime: { webhookSecret: "shared-secret" },
@@ -414,11 +463,12 @@ test("webhook handler rejects invalid signature after reception logging", async 
 });
 
 test("webhook handler ignores non-webhook paths", async () => {
-  const { calls, context, eventAttributeResolver, eventLog, eventLogCalls, executionProfileResolver } = createContext({ path: "/other" });
+  const { calls, context, eventAttributeResolver, eventLog, eventLogCalls, eventModelBuilder, executionProfileResolver } = createContext({ path: "/other" });
   const handler = new Github_Flows_Web_Handler_Webhook({
+    eventModelBuilder,
     eventAttributeResolver,
     eventLog,
-    eventLoggingContext: { createByGithubEvent: () => ({}) },
+    eventLoggingContext: { createByEventModel: () => ({}) },
     executionProfileResolver,
     executionStartCoordinator: { start: async () => ({ attempted: true, completed: true, exit: "success", stderr: "", stdout: "" }) },
     runtime: { webhookSecret: "shared-secret" },
@@ -432,13 +482,14 @@ test("webhook handler ignores non-webhook paths", async () => {
 });
 
 test("webhook handler rejects invalid json after signature validation", async () => {
-  const { calls, context, eventAttributeResolver, eventLog, eventLogCalls, executionProfileResolver, profileResolveCalls } = createContext({
+  const { calls, context, eventAttributeResolver, eventLog, eventLogCalls, eventModelBuilder, executionProfileResolver, profileResolveCalls } = createContext({
     body: "{invalid-json",
   });
   const handler = new Github_Flows_Web_Handler_Webhook({
+    eventModelBuilder,
     eventAttributeResolver,
     eventLog,
-    eventLoggingContext: { createByGithubEvent: () => ({}) },
+    eventLoggingContext: { createByEventModel: () => ({}) },
     executionProfileResolver,
     executionStartCoordinator: { start: async () => ({ attempted: true, completed: true, exit: "success", stderr: "", stdout: "" }) },
     runtime: { webhookSecret: "shared-secret" },
@@ -482,6 +533,7 @@ test("webhook handler returns 500 if execution start fails", async () => {
     eventAttributeResolver,
     eventLog,
     eventLogCalls,
+    eventModelBuilder,
     eventLoggingContext,
     executionProfileResolver,
     startCalls,
@@ -489,6 +541,7 @@ test("webhook handler returns 500 if execution start fails", async () => {
     body: JSON.stringify(payload),
   });
   const handler = new Github_Flows_Web_Handler_Webhook({
+    eventModelBuilder,
     eventAttributeResolver,
     eventLog,
     eventLoggingContext,
@@ -536,6 +589,7 @@ test("webhook handler skips execution when no profile matches", async () => {
     eventAttributeResolver,
     eventLog,
     eventLogCalls,
+    eventModelBuilder,
     eventLoggingContext,
     executionStartCoordinator,
     startCalls,
@@ -543,6 +597,7 @@ test("webhook handler skips execution when no profile matches", async () => {
     body: JSON.stringify(payload),
   });
   const handler = new Github_Flows_Web_Handler_Webhook({
+    eventModelBuilder,
     eventAttributeResolver,
     eventLog,
     eventLoggingContext,
@@ -579,6 +634,7 @@ test("webhook handler skips execution when no profile matches", async () => {
       },
       resolutionInputs: {
         action: "opened",
+        actorLogin: "flancer64",
         event: "issues",
         issueAuthor: "octocat",
         repository: "octocat/demo",
