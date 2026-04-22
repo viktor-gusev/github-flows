@@ -20,10 +20,9 @@ test("launch contract factory creates fully resolved contract from explicit prof
       orderKey: "issues/profile.json",
       promptRefBaseDir: "issues",
       trigger: { event: "issues" },
-      type: "docker",
       execution: {
         handler: {
-          type: "codex",
+          type: "agent",
           command: ["node", "bin/agent.mjs"],
           args: ["--mode", "run"],
           promptRef: "default.md",
@@ -51,9 +50,8 @@ test("launch contract factory creates fully resolved contract from explicit prof
   });
 
   assert.deepEqual(contract, {
-    type: "docker",
     handler: {
-      type: "codex",
+      type: "agent",
       command: ["node", "bin/agent.mjs"],
       args: ["--mode", "run"],
       prompt: "Solve the task.",
@@ -87,10 +85,9 @@ test("launch contract factory fails when explicit fields are missing", () => {
       orderKey: "issues/profile.json",
       promptRefBaseDir: "issues",
       trigger: { event: "issues" },
-      type: "docker",
       execution: {
         handler: {
-          type: "codex",
+          type: "agent",
           command: ["node"],
           promptRef: "default.md",
         },
@@ -108,4 +105,43 @@ test("launch contract factory fails when explicit fields are missing", () => {
       workspacePath: "/tmp/github-flows/ws/octocat/demo/issues/evt-1",
     },
   }), /execution\.handler\.args/);
+});
+
+test("launch contract factory rejects unsupported handler type", () => {
+  const factory = new Github_Flows_Execution_Launch_Contract_Factory({ eventLog: {} });
+
+  assert.throws(() => factory.create({
+    loggingContext: {
+      eventId: "evt-1",
+      eventType: "issues",
+      logDirectory: "/tmp/github-flows/log/run/octocat/demo/evt-1",
+      owner: "octocat",
+      repo: "demo",
+    },
+    prompt: "Solve the task.",
+    selectedProfile: {
+      id: "issues/profile.json",
+      orderKey: "issues/profile.json",
+      promptRefBaseDir: "issues",
+      trigger: { event: "issues" },
+      execution: {
+        handler: {
+          type: "codex",
+          command: ["node"],
+          args: [],
+          promptRef: "default.md",
+        },
+        runtime: {
+          image: "codex-agent",
+          setupScript: "test -d repo",
+          env: { DEMO: "1" },
+          timeoutSec: 120,
+        },
+      },
+    },
+    workspace: {
+      workspaceRoot: "/tmp/github-flows",
+      workspacePath: "/tmp/github-flows/ws/octocat/demo/issues/evt-1",
+    },
+  }), /execution\.handler\.type/);
 });

@@ -4,6 +4,7 @@
  * @description Runs one resolved launch contract inside an isolated Docker container.
  */
 const CONTAINER_WORKSPACE_PATH = "/workspace";
+const SUPPORTED_HANDLER_TYPES = new Set(["agent", "shell"]);
 
 function quoteShell(value) {
   return `'${String(value).replaceAll("'", "'\"'\"'")}'`;
@@ -14,11 +15,7 @@ function validateLaunchContract(contract) {
     throw new Error("Launch contract is required.");
   }
 
-  const { environment, handler, type } = /** @type {{ environment?: unknown, handler?: unknown, type?: unknown }} */ (contract);
-
-  if (type !== "docker") {
-    throw new Error("Launch contract type must be docker.");
-  }
+  const { environment, handler } = /** @type {{ environment?: unknown, handler?: unknown }} */ (contract);
   if (!handler || (typeof handler !== "object")) {
     throw new Error("Launch contract handler is required.");
   }
@@ -58,6 +55,9 @@ function validateLaunchContract(contract) {
   if ((typeof typedHandler.type !== "string") || typedHandler.type.length === 0) {
     throw new Error("Launch contract handler.type is required.");
   }
+  if (!SUPPORTED_HANDLER_TYPES.has(typedHandler.type)) {
+    throw new Error(`Launch contract handler.type is unsupported: ${typedHandler.type}`);
+  }
   if (!Array.isArray(typedHandler.command) || typedHandler.command.length === 0 || typedHandler.command.some((item) => typeof item !== "string" || item.length === 0)) {
     throw new Error("Launch contract handler.command must be a non-empty string array.");
   }
@@ -69,7 +69,6 @@ function validateLaunchContract(contract) {
   }
 
   return {
-    type,
     handler: {
       args: typedHandler.args,
       command: typedHandler.command,

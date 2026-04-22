@@ -4,6 +4,8 @@
  * @description Scans cfg fragments and resolves one effective candidate profile for an event.
  */
 const PROFILE_FILENAME = "profile.json";
+const DOCKER_RUNTIME_TYPE = "docker";
+const SUPPORTED_HANDLER_TYPES = new Set(["agent", "shell"]);
 
 /**
  * @param {unknown} value
@@ -67,8 +69,7 @@ function deepMerge(base, override) {
  * @returns {{
  *   execution: Record<string, unknown>,
  *   promptRefBaseDir: string | undefined,
- *   trigger: Record<string, unknown>,
- *   type: string | undefined
+ *   trigger: Record<string, unknown>
  * }}
  */
 function mergeCandidateFragments(fragments) {
@@ -78,12 +79,37 @@ function mergeCandidateFragments(fragments) {
       ...asRecord(fragment.trigger),
     };
     const execution = deepMerge(result.execution, fragment.execution);
-    const runtime = asRecord(asRecord(fragment.execution).runtime);
-    const type = typeof runtime.type === "string" ? runtime.type : result.type;
     const nextHandler = asRecord(asRecord(fragment.execution).handler);
     const promptRefBaseDir = typeof nextHandler.promptRef === "string" ? fragment.directory : result.promptRefBaseDir;
-    return { execution, promptRefBaseDir, trigger, type };
-  }, { trigger: {}, execution: {}, type: undefined, promptRefBaseDir: undefined });
+    return { execution, promptRefBaseDir, trigger };
+  }, { trigger: {}, execution: {}, promptRefBaseDir: undefined });
+}
+
+/**
+ * @param {Record<string, unknown>} execution
+ * @returns {Record<string, unknown>}
+ */
+function normalizeSelectedExecution(execution) {
+  const handler = asRecord(execution.handler);
+  const runtime = asRecord(execution.runtime);
+  const handlerType = handler.type;
+  const runtimeType = runtime.type;
+
+  if ((typeof handlerType === "string") && !SUPPORTED_HANDLER_TYPES.has(handlerType)) {
+    throw new Error(`Unsupported execution.handler.type: ${handlerType}`);
+  }
+  if ((runtimeType !== undefined) && (runtimeType !== DOCKER_RUNTIME_TYPE)) {
+    throw new Error(`Unsupported execution.runtime.type: ${String(runtimeType)}. Docker is mandatory.`);
+  }
+
+  const normalizedRuntime = { ...runtime };
+  delete normalizedRuntime.type;
+
+  return {
+    ...execution,
+    handler: { ...handler },
+    runtime: normalizedRuntime,
+  };
 }
 
 /**
@@ -256,7 +282,6 @@ export default class Github_Flows_Execution_Profile_Resolver {
      *     execution: Record<string, unknown>,
      *     promptRefBaseDir: string | undefined,
      *     trigger: Record<string, unknown>,
-     *     type: string | undefined
      *   }
      * }[]>}
      */
@@ -387,10 +412,9 @@ export default class Github_Flows_Execution_Profile_Resolver {
         selectedProfile: effective
           ? {
               id: effective.id,
-              execution: effective.profile.execution,
+              execution: normalizeSelectedExecution(effective.profile.execution),
               orderKey: effective.orderKey,
               promptRefBaseDir: effective.profile.promptRefBaseDir,
-              type: effective.profile.type,
               trigger: effective.profile.trigger,
             }
           : null,

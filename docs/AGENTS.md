@@ -13,9 +13,10 @@ Read the documents in this order:
 
 1. `overview.md` for the package role, scope, and core mental model.
 2. `single-event-launch.md` for configuring one agent run for one GitHub event.
-3. `profile-layout.md` for organizing `workspaceRoot/cfg/` and profile fragments.
-4. `event-attributes.md` for base and host-provided matching inputs.
-5. `event-chains.md` for designing multi-step automation through independent GitHub repository events.
+3. `profile-example.md` for one complete profile fragment example with trigger and execution fields together.
+4. `profile-layout.md` for organizing `workspaceRoot/cfg/` and profile fragments.
+5. `event-attributes.md` for base and host-provided matching inputs.
+6. `event-chains.md` for designing multi-step automation through independent GitHub repository events.
 
 ## Level Map
 
@@ -23,6 +24,7 @@ Read the documents in this order:
 - `event-attributes.md` — matching inputs and host-provided attributes.
 - `event-chains.md` — multi-step automation through independent repository events.
 - `overview.md` — package identity, boundaries, and document navigation.
+- `profile-example.md` — complete example of one profile fragment with trigger, handler, and runtime fields.
 - `profile-layout.md` — profile-fragment structure, layout, and selection model.
 - `single-event-launch.md` — one-event configuration walkthrough.
 

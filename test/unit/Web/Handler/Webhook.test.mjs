@@ -153,7 +153,6 @@ function createContext({ body = "{}", path = "/webhooks/github", secret = "share
             id: "issues/profile.json",
             orderKey: "issues/profile.json",
             promptRefBaseDir: "issues",
-            type: "docker",
             trigger: {
               action: "opened",
               event: "issues",
@@ -161,7 +160,7 @@ function createContext({ body = "{}", path = "/webhooks/github", secret = "share
               repository: "octocat/demo",
             },
             execution: {
-              handler: { type: "codex", command: ["node"], args: [], promptRef: "default.md" },
+              handler: { type: "agent", command: ["node"], args: [], promptRef: "default.md" },
               runtime: { image: "profile-image", setupScript: "true", env: {}, timeoutSec: 30 },
             },
           },
@@ -307,7 +306,6 @@ test("webhook handler resolves event attributes before profile selection", async
       id: "issues/profile.json",
       orderKey: "issues/profile.json",
       promptRefBaseDir: "issues",
-      type: "docker",
       trigger: {
         action: "opened",
         event: "issues",
@@ -315,7 +313,7 @@ test("webhook handler resolves event attributes before profile selection", async
         repository: "octocat/demo",
       },
       execution: {
-        handler: { type: "codex", command: ["node"], args: [], promptRef: "default.md" },
+        handler: { type: "agent", command: ["node"], args: [], promptRef: "default.md" },
         runtime: { image: "profile-image", setupScript: "true", env: {}, timeoutSec: 30 },
       },
     },

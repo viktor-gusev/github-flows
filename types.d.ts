@@ -106,9 +106,10 @@ declare global {
   type Github_Flows_Config_Runtime = import("./src/Config/Runtime.mjs").Data;
   type Github_Flows_Config_Runtime__Wrapper = import("./src/Config/Runtime.mjs").default;
   type Github_Flows_Config_Runtime__Factory = import("./src/Config/Runtime.mjs").Factory;
+  type Github_Flows_Execution_Handler_Type = "agent" | "shell";
   type Github_Flows_Execution_Profile__Execution = {
     handler: {
-      type: string,
+      type: Github_Flows_Execution_Handler_Type,
       command: string[],
       args: string[],
       promptRef?: string,
@@ -128,11 +129,10 @@ declare global {
     orderKey: string,
     promptRefBaseDir: string | undefined,
     trigger: Record<string, unknown>,
-    type: string | undefined,
   };
   type Github_Flows_Execution_Profile_Resolver = import("./src/Execution/Profile/Resolver.mjs").default;
   type Github_Flows_Execution_Launch_Contract__Handler = {
-    type: string,
+    type: Github_Flows_Execution_Handler_Type,
     command: string[],
     args: string[],
     prompt: string,
@@ -148,7 +148,6 @@ declare global {
   };
   type Github_Flows_Execution_Start_Coordinator = import("./src/Execution/Start/Coordinator.mjs").default;
   type Github_Flows_Execution_Launch_Contract = {
-    type: string,
     handler: Github_Flows_Execution_Launch_Contract__Handler,
     environment: Github_Flows_Execution_Launch_Contract__Environment,
   };

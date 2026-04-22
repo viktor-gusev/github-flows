@@ -111,6 +111,7 @@ export default class Github_Flows_Execution_Start_Coordinator {
       await logStep({
         action: "launch-contract-materialized",
         details: {
+          handlerType: launchContract.handler.type,
           image: launchContract.environment.image,
           profileId: selectedProfile.id,
           workspaceRoot: launchContract.environment.workspaceRoot,
@@ -120,10 +121,6 @@ export default class Github_Flows_Execution_Start_Coordinator {
         message: `Materialized launch contract for profile ${selectedProfile.id}.`,
         stage: "execution-preparation",
       });
-
-      if (launchContract.type !== "docker") {
-        throw new Error(`Unsupported launch contract type: ${launchContract.type}`);
-      }
 
       await logStep({
         action: "runtime-start-requested",

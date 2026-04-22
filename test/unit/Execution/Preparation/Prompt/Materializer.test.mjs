@@ -12,10 +12,9 @@ function createSelectedProfile(handler = {}) {
     orderKey: "issues/profile.json",
     promptRefBaseDir: "issues",
     trigger: { event: "issues" },
-    type: "docker",
     execution: {
       handler: {
-        type: "codex",
+        type: "agent",
         command: ["node"],
         args: [],
         promptRef: "default.md",

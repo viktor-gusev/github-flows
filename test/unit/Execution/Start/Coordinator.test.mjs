@@ -15,9 +15,8 @@ test("execution start coordinator prepares workspace and materializes launch con
       create(entry) {
         calls.push({ method: "create", entry });
         return {
-          type: "docker",
           handler: {
-            type: "codex",
+            type: "agent",
             command: ["node", "bin/agent.mjs"],
             args: ["--mode", "run"],
             prompt: "Solve the task.",
@@ -70,11 +69,10 @@ test("execution start coordinator prepares workspace and materializes launch con
       id: "a/profile.json",
       orderKey: "a/profile.json",
       promptRefBaseDir: "a",
-      type: "docker",
       trigger: { event: "issues" },
       execution: {
         handler: {
-          type: "codex",
+          type: "agent",
           command: ["node", "bin/agent.mjs"],
           args: ["--mode", "run"],
           promptRef: "default.md",
@@ -151,9 +149,8 @@ test("execution start coordinator requires profile runtime image", async () => {
         id: "a/profile.json",
         orderKey: "a/profile.json",
         promptRefBaseDir: "a",
-        type: "docker",
         trigger: {},
-        execution: { handler: { type: "codex", promptRef: "default.md" }, runtime: {} },
+        execution: { handler: { type: "agent", promptRef: "default.md" }, runtime: {} },
       },
     }),
     /execution\.runtime\.image/,

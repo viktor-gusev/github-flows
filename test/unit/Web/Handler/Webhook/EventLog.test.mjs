@@ -219,9 +219,8 @@ test("event logger persists archival artifacts for admitted events", async () =>
         orderKey: "issues/profile.json",
         promptRefBaseDir: "issues",
         trigger: { event: "issues" },
-        type: "docker",
         execution: {
-          handler: { type: "codex", command: ["node"], args: [], promptRef: "default.md" },
+          handler: { type: "agent", command: ["node"], args: [], promptRef: "default.md" },
           runtime: { image: "codex-agent", setupScript: "true", env: {}, timeoutSec: 30 },
         },
       },

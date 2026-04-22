@@ -21,9 +21,10 @@ For human-facing reading, start here:
 
 1. [docs/overview.md](docs/overview.md)
 2. [docs/single-event-launch.md](docs/single-event-launch.md)
-3. [docs/profile-layout.md](docs/profile-layout.md)
-4. [docs/event-attributes.md](docs/event-attributes.md)
-5. [docs/event-chains.md](docs/event-chains.md)
+3. [docs/profile-example.md](docs/profile-example.md)
+4. [docs/profile-layout.md](docs/profile-layout.md)
+5. [docs/event-attributes.md](docs/event-attributes.md)
+6. [docs/event-chains.md](docs/event-chains.md)
 
 ## Product Summary
 

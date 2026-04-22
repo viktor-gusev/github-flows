@@ -27,13 +27,13 @@ test("profile resolver merges fragment chain from root to leaf candidate", async
       trigger: { event: "issues" },
       execution: {
         handler: {
-          type: "codex",
+          type: "agent",
           command: ["node", "root.mjs"],
           args: [],
           promptRef: "root.md",
           promptVariables: { REPO_NAME: "event.repository.name" },
         },
-        runtime: { type: "docker", image: "root-image", setupScript: "test -d repo", env: { ROOT: "1" }, timeoutSec: 60 },
+        runtime: { image: "root-image", setupScript: "test -d repo", env: { ROOT: "1" }, timeoutSec: 60 },
       },
     });
     await writeProfile(workspaceRoot, path.join("a", "b"), {
@@ -75,7 +75,7 @@ test("profile resolver merges fragment chain from root to leaf candidate", async
     });
     assert.deepEqual(result.selectedProfile?.execution, {
       handler: {
-        type: "codex",
+        type: "agent",
         command: ["node", "leaf.mjs"],
         args: ["--leaf"],
         promptRef: "leaf.md",
@@ -85,7 +85,6 @@ test("profile resolver merges fragment chain from root to leaf candidate", async
         },
       },
       runtime: {
-        type: "docker",
         image: "leaf-image",
         env: {
           ROOT: "1",
@@ -95,7 +94,6 @@ test("profile resolver merges fragment chain from root to leaf candidate", async
         timeoutSec: 60,
       },
     });
-    assert.equal(result.selectedProfile?.type, "docker");
     assert.equal(result.selectedProfile?.promptRefBaseDir, "a/b");
     assert.equal(logs[0].action, "build-candidate-profile-registry");
     assert.equal(logs[1].action, "resolve-effective-profile");
@@ -117,7 +115,7 @@ test("profile resolver builds candidates for every discovered profile path and l
   try {
     await writeProfile(workspaceRoot, ".", {
       trigger: { event: "issues" },
-      execution: { runtime: { type: "docker", image: "root-image" } },
+      execution: { runtime: { image: "root-image" } },
     });
     await writeProfile(workspaceRoot, "site", {
       trigger: { repository: "octocat/demo" },
@@ -188,11 +186,11 @@ test("profile resolver selects highest specificity then stable filesystem order"
   try {
     await writeProfile(workspaceRoot, "a", {
       trigger: { event: "issues", repository: "octocat/demo" },
-      execution: { handler: { type: "codex", command: ["node"], args: [], promptRef: "a.md" }, runtime: { type: "docker", image: "a-image", setupScript: "true", env: {}, timeoutSec: 30 } },
+      execution: { handler: { type: "agent", command: ["node"], args: [], promptRef: "a.md" }, runtime: { image: "a-image", setupScript: "true", env: {}, timeoutSec: 30 } },
     });
     await writeProfile(workspaceRoot, "b", {
       trigger: { event: "issues", action: "opened" },
-      execution: { handler: { type: "codex", command: ["node"], args: [], promptRef: "b.md" }, runtime: { type: "docker", image: "b-image", setupScript: "true", env: {}, timeoutSec: 30 } },
+      execution: { handler: { type: "agent", command: ["node"], args: [], promptRef: "b.md" }, runtime: { image: "b-image", setupScript: "true", env: {}, timeoutSec: 30 } },
     });
 
     let result = await resolver.resolveByGithubEvent({
@@ -230,7 +228,7 @@ test("profile resolver does not use prompt variables for matching or tie-breakin
       trigger: { event: "issues", repository: "octocat/demo" },
       execution: {
         handler: {
-          type: "codex",
+          type: "agent",
           command: ["node"],
           args: [],
           promptRef: "a.md",
@@ -238,14 +236,14 @@ test("profile resolver does not use prompt variables for matching or tie-breakin
             A_TITLE: "event.issue.title",
           },
         },
-        runtime: { type: "docker", image: "a-image", setupScript: "true", env: {}, timeoutSec: 30 },
+        runtime: { image: "a-image", setupScript: "true", env: {}, timeoutSec: 30 },
       },
     });
     await writeProfile(workspaceRoot, "b", {
       trigger: { event: "issues", repository: "octocat/demo" },
       execution: {
         handler: {
-          type: "codex",
+          type: "agent",
           command: ["node"],
           args: [],
           promptRef: "b.md",
@@ -254,7 +252,7 @@ test("profile resolver does not use prompt variables for matching or tie-breakin
             WORKSPACE: "workspace.workspacePath",
           },
         },
-        runtime: { type: "docker", image: "b-image", setupScript: "true", env: {}, timeoutSec: 30 },
+        runtime: { image: "b-image", setupScript: "true", env: {}, timeoutSec: 30 },
       },
     });
 
@@ -284,7 +282,7 @@ test("profile resolver returns no selected profile when nothing matches", async 
   try {
     await writeProfile(workspaceRoot, ".", {
       trigger: { event: "pull_request" },
-      execution: { handler: { type: "codex", command: ["node"], args: [], promptRef: "pr.md" }, runtime: { type: "docker", image: "pr-image", setupScript: "true", env: {}, timeoutSec: 30 } },
+      execution: { handler: { type: "agent", command: ["node"], args: [], promptRef: "pr.md" }, runtime: { image: "pr-image", setupScript: "true", env: {}, timeoutSec: 30 } },
     });
 
     const result = await resolver.resolveByGithubEvent({
@@ -297,6 +295,38 @@ test("profile resolver returns no selected profile when nothing matches", async 
 
     assert.equal(result.selectedProfile, null);
     assert.deepEqual(result.matchedCandidates, []);
+  } finally {
+    await fs.rm(workspaceRoot, { recursive: true, force: true });
+  }
+});
+
+test("profile resolver rejects non-docker runtime type on the selected profile", async () => {
+  const workspaceRoot = await fs.mkdtemp(path.join(os.tmpdir(), "github-flows-profile-"));
+  const resolver = new Github_Flows_Execution_Profile_Resolver({
+    fsPromises: fs,
+    pathModule: path,
+    runtime: { workspaceRoot },
+  });
+
+  try {
+    await writeProfile(workspaceRoot, ".", {
+      trigger: { event: "issues" },
+      execution: {
+        handler: { type: "agent", command: ["node"], args: [], promptRef: "pr.md" },
+        runtime: { type: "none", image: "pr-image", setupScript: "true", env: {}, timeoutSec: 30 },
+      },
+    });
+
+    await assert.rejects(
+      resolver.resolveByGithubEvent({
+        headers: { "x-github-event": "issues" },
+        payload: {
+          action: "opened",
+          repository: { name: "demo", owner: { login: "octocat" } },
+        },
+      }),
+      /Docker is mandatory/,
+    );
   } finally {
     await fs.rm(workspaceRoot, { recursive: true, force: true });
   }

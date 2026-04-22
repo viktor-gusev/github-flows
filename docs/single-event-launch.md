@@ -1,6 +1,6 @@
 # Single Event Launch
 
-This guide shows how to configure one isolated agent run for one admitted GitHub event.
+This guide shows how to configure one isolated handler run for one admitted GitHub event.
 
 ## Execution Rule
 
@@ -33,8 +33,8 @@ If no profile matches, the event is ignored.
       "promptRef": "prompts/default.md"
     },
     "runtime": {
-      "type": "docker",
       "image": "ghcr.io/acme/codex-agent:latest",
+      "setupScript": "test -d repo",
       "timeoutSec": 1800,
       "env": {
         "LOG_LEVEL": "info"
@@ -83,7 +83,7 @@ In this layout:
 - the root fragment defines default runtime and handler settings
 - the nested fragment narrows applicability to `issues/opened` in `acme/demo`
 - both fragments are merged into one candidate profile for that path
-- if that candidate is the most specific match, one execution starts
+- if that candidate is the most specific match, one Docker-isolated execution starts
 
 ## Recommended Trigger Style
 

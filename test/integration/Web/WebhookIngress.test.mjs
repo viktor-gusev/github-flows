@@ -210,7 +210,7 @@ test("webhook ingress is served on the static GitHub webhook path", { concurrenc
       },
       execution: {
         handler: {
-          type: "codex",
+          type: "agent",
           command: ["node"],
           args: [],
           promptRef: "default.md",
@@ -219,7 +219,6 @@ test("webhook ingress is served on the static GitHub webhook path", { concurrenc
           },
         },
         runtime: {
-          type: "docker",
           dockerArgs: [],
           image: "profile-image",
           setupScript: "true",
@@ -347,7 +346,7 @@ test("webhook ingress is served on the static GitHub webhook path", { concurrenc
       },
       execution: {
         handler: {
-          type: "codex",
+          type: "agent",
           command: ["node"],
           args: [],
           promptRef: "default.md",
@@ -356,7 +355,6 @@ test("webhook ingress is served on the static GitHub webhook path", { concurrenc
           },
         },
         runtime: {
-          type: "docker",
           dockerArgs: [],
           image: "profile-image",
           setupScript: "true",

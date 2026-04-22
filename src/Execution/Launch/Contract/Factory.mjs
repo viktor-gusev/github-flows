@@ -51,6 +51,13 @@ function requireStringRecord(value, field) {
   return /** @type {Record<string, string>} */ (record);
 }
 
+function requireHandlerType(value, field) {
+  if ((value !== "agent") && (value !== "shell")) {
+    throw new Error(`Missing required launch field: ${field}`);
+  }
+  return value;
+}
+
 export default class Github_Flows_Execution_Launch_Contract_Factory {
   /**
    * @param {object} deps
@@ -88,9 +95,8 @@ export default class Github_Flows_Execution_Launch_Contract_Factory {
       const runtime = asRecord(execution.runtime);
 
       const contract = {
-        type: requireString(selectedProfile.type, "profile.type"),
         handler: {
-          type: requireString(handler.type, "execution.handler.type"),
+          type: requireHandlerType(handler.type, "execution.handler.type"),
           command: requireStringArray(handler.command, "execution.handler.command"),
           args: requireStringArray(handler.args, "execution.handler.args"),
           prompt: requireString(prompt, "prepared.prompt"),
@@ -110,8 +116,8 @@ export default class Github_Flows_Execution_Launch_Contract_Factory {
         component: "Github_Flows_Execution_Launch_Contract_Factory",
         action: "launch-contract-create",
         details: {
+          handlerType: contract.handler.type,
           profileId: selectedProfile.id,
-          type: contract.type,
           workspacePath: contract.environment.workspacePath,
         },
         message: `Created launch contract for profile ${selectedProfile.id}.`,
@@ -120,8 +126,8 @@ export default class Github_Flows_Execution_Launch_Contract_Factory {
         action: "launch-contract-create",
         component: "Github_Flows_Execution_Launch_Contract_Factory",
         details: {
+          handlerType: contract.handler.type,
           profileId: selectedProfile.id,
-          type: contract.type,
           workspacePath: contract.environment.workspacePath,
         },
         loggingContext,
