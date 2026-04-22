@@ -156,3 +156,57 @@ test("execution start coordinator requires profile runtime image", async () => {
     /execution\.runtime\.image/,
   );
 });
+
+test("execution start coordinator rejects agent profiles without promptRef before preparation", async () => {
+  const calls = [];
+  const coordinator = new Github_Flows_Execution_Start_Coordinator({
+    eventLog: {
+      async logEventProcessing(entry) {
+        calls.push({ method: "logEventProcessing", entry });
+      },
+    },
+    executionLaunchContractFactory: {
+      create() {
+        throw new Error("must not create");
+      },
+    },
+    executionPromptMaterializer: {
+      async materialize() {
+        throw new Error("must not materialize");
+      },
+    },
+    executionRuntimeDocker: {
+      async run() {
+        throw new Error("must not run");
+      },
+    },
+    executionWorkspacePreparer: {
+      async prepareByGithubEvent() {
+        throw new Error("must not prepare");
+      },
+    },
+  });
+
+  await assert.rejects(
+    coordinator.start({
+      event: {},
+      loggingContext: {
+        eventId: "evt-1",
+        eventType: "issues",
+        logDirectory: "/tmp/github-flows/log/run/octocat/demo/evt-1",
+        owner: "octocat",
+        repo: "demo",
+      },
+      selectedProfile: {
+        id: "a/profile.json",
+        orderKey: "a/profile.json",
+        promptRefBaseDir: "a",
+        trigger: {},
+        execution: { handler: { type: "agent", command: ["node"], args: [] }, runtime: {} },
+      },
+    }),
+    /execution\.handler\.promptRef/,
+  );
+
+  assert.deepEqual(calls, []);
+});

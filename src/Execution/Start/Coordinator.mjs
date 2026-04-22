@@ -3,6 +3,21 @@
  * @namespace Github_Flows_Execution_Start_Coordinator
  * @description Coordinates execution preparation, launch-contract creation, and runtime dispatch.
  */
+function asRecord(value) {
+  if (value && (typeof value === "object") && !Array.isArray(value)) {
+    return /** @type {Record<string, unknown>} */ (value);
+  }
+  return {};
+}
+
+function requirePromptRefForAgent(selectedProfile) {
+  const execution = asRecord(selectedProfile.execution);
+  const handler = asRecord(execution.handler);
+  if (handler.type !== "agent") return;
+  if (typeof handler.promptRef === "string" && handler.promptRef.length > 0) return;
+  throw new Error(`Agent execution requires execution.handler.promptRef: ${selectedProfile.id}`);
+}
+
 export default class Github_Flows_Execution_Start_Coordinator {
   /**
    * @param {object} deps
@@ -44,6 +59,8 @@ export default class Github_Flows_Execution_Start_Coordinator {
      * }} params
      */
     this.start = async function ({ event, loggingContext, selectedProfile }) {
+      requirePromptRefForAgent(selectedProfile);
+
       await logStep({
         action: "execution-start-requested",
         details: {

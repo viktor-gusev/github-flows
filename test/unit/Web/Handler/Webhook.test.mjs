@@ -572,6 +572,100 @@ test("webhook handler returns 500 if execution start fails", async () => {
   ]);
 });
 
+test("webhook handler rejects agent execution without promptRef before preparation", async () => {
+  const payload = {
+    action: "opened",
+    repository: {
+      id: 1,
+      name: "demo",
+      owner: { login: "octocat" },
+    },
+  };
+  const {
+    calls,
+    context,
+    eventAttributeResolver,
+    eventLog,
+    eventLogCalls,
+    eventModelBuilder,
+    eventLoggingContext,
+    executionProfileResolver,
+    startCalls,
+  } = createContext({
+    body: JSON.stringify(payload),
+  });
+  const handler = new Github_Flows_Web_Handler_Webhook({
+    eventModelBuilder,
+    eventAttributeResolver,
+    eventLog,
+    eventLoggingContext,
+    executionProfileResolver: {
+      async resolveByEventAttributes() {
+        return {
+          applicabilityBasis: {
+            action: "opened",
+            event: "issues",
+            repository: "octocat/demo",
+          },
+          matchedCandidates: [
+            {
+              id: "issues/profile.json",
+              orderKey: "issues/profile.json",
+              specificity: 3,
+              trigger: {
+                action: "opened",
+                event: "issues",
+                repository: "octocat/demo",
+              },
+            },
+          ],
+          selectedProfile: {
+            id: "issues/profile.json",
+            orderKey: "issues/profile.json",
+            promptRefBaseDir: "issues",
+            trigger: {
+              action: "opened",
+              event: "issues",
+              repository: "octocat/demo",
+            },
+            execution: {
+              handler: { type: "agent", command: ["node"], args: [] },
+              runtime: { image: "profile-image", setupScript: "true", env: {}, timeoutSec: 30 },
+            },
+          },
+        };
+      },
+    },
+    executionStartCoordinator: {
+      async start(entry) {
+        startCalls.push(entry);
+        throw new Error("must not start");
+      },
+    },
+    runtime: { webhookSecret: "shared-secret" },
+    signature: { isValid: async () => true },
+  });
+
+  await handler.handle(context);
+
+  assert.equal(eventLogCalls[0].method, "logReception");
+  assert.equal(startCalls.length, 1);
+  assert.equal(startCalls[0].selectedProfile.execution.handler.type, "agent");
+  assert.equal(startCalls[0].selectedProfile.execution.handler.promptRef, undefined);
+  assert.deepEqual(calls, [
+    {
+      method: "writeHead",
+      code: 500,
+      headers: { "Content-Type": "application/json; charset=utf-8" },
+    },
+    {
+      method: "end",
+      body: JSON.stringify({ error: "workspace-prepare-failed" }),
+    },
+    { method: "complete" },
+  ]);
+});
+
 test("webhook handler skips execution when no profile matches", async () => {
   const payload = {
     action: "opened",
