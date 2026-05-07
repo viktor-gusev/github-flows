@@ -14,10 +14,10 @@ It does not define product behavior. It verifies behavior defined by `ctx/`.
 ## Working Rules
 
 - Follow the TeqFW testing model in:
-  - `ctx/spec/code/platform/teqfw/quality/testing/overview.md`
-  - `ctx/spec/code/platform/teqfw/quality/testing/unit.md`
-  - `ctx/spec/code/platform/teqfw/quality/testing/integration.md`
-  - `ctx/spec/code/platform/teqfw/quality/testing/fixtures.md`
+  - `ctx/spec/ns/teqfw/platform/quality/testing/overview.md`
+  - `ctx/spec/ns/teqfw/platform/quality/testing/unit.md`
+  - `ctx/spec/ns/teqfw/platform/quality/testing/integration.md`
+  - `ctx/spec/ns/teqfw/platform/quality/testing/fixtures.md`
 - Follow project-local testing refinements in:
   - `ctx/docs/code/testing.md`
 - Keep `unit/` and `integration/` responsibilities separate.
