@@ -558,6 +558,21 @@ test("webhook handler returns 500 if execution start fails", async () => {
 
   assert.equal(eventLogCalls[0].method, "logReception");
   assert.equal(startCalls.length, 1);
+  const lastEventLogCall = eventLogCalls[eventLogCalls.length - 1];
+  assert.equal(lastEventLogCall.method, "logEventProcessing");
+  assert.equal(lastEventLogCall.entry.action, "execution-failed");
+  assert.equal(lastEventLogCall.entry.component, "Github_Flows_Web_Handler_Webhook");
+  assert.equal(lastEventLogCall.entry.details.error, "runtime failed");
+  assert.match(lastEventLogCall.entry.details.stack, /runtime failed/);
+  assert.deepEqual(lastEventLogCall.entry.loggingContext, {
+    eventId: "delivery-123",
+    eventType: "issues",
+    logDirectory: "/tmp/github-flows/log/run/octocat/demo/delivery-123",
+    owner: "octocat",
+    repo: "demo",
+  });
+  assert.equal(lastEventLogCall.entry.message, "Execution failed for admitted event delivery-123.");
+  assert.equal(lastEventLogCall.entry.stage, "execution-runtime");
   assert.deepEqual(calls, [
     {
       method: "writeHead",

@@ -108,12 +108,13 @@ export default class Github_Flows_Web_Handler_Webhook {
         return;
       }
 
+      let loggingContext;
       try {
         const admittedEvent = eventModelBuilder.buildByGithubEvent({
           headers: request.headers,
           payload,
         });
-        const loggingContext = eventLoggingContext.createByEventModel(admittedEvent.event);
+        loggingContext = eventLoggingContext.createByEventModel(admittedEvent.event);
         await eventLog.persistEventSnapshot({
           headers: request.headers,
           loggingContext,
@@ -197,7 +198,18 @@ export default class Github_Flows_Web_Handler_Webhook {
             stage: "execution-decision",
           });
         }
-      } catch {
+      } catch (error) {
+        await eventLog.logEventProcessing({
+          action: "execution-failed",
+          component: "Github_Flows_Web_Handler_Webhook",
+          details: {
+            error: error instanceof Error ? error.message : String(error),
+            stack: error instanceof Error ? error.stack : undefined,
+          },
+          loggingContext,
+          message: `Execution failed for admitted event ${loggingContext.eventId}.`,
+          stage: "execution-runtime",
+        });
         if (!response.headersSent) {
           response.writeHead(500, { "Content-Type": "application/json; charset=utf-8" });
         }
