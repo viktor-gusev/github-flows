@@ -1,7 +1,7 @@
 # Event Attribute Provider Example
 
 - Path: `ai/examples/event-attribute-provider.md`
-- Version: `20260422`
+- Version: `20260520`
 
 This example shows how a host application can register one optional `Github_Flows_Event_Attribute_Provider` during startup.
 
@@ -26,8 +26,8 @@ export default class App_Github_Attribute_Provider {
             const user = /** @type {Record<string, unknown>} */ (issue.user ?? {});
 
             return {
-                actorLogin: eventModel.actorLogin,
                 issueAuthor: typeof user.login === 'string' ? user.login : undefined,
+                reviewLane: eventModel.repository.fullName === 'acme/demo' ? 'priority' : 'default',
             };
         };
     }
@@ -75,11 +75,37 @@ const app = await container.get('App_Github_Bootstrap$');
 await app.execute();
 ```
 
+Example profile fragment using the same-event provider output for prompt materialization:
+
+```json
+{
+  "trigger": {
+    "repository": "acme/demo",
+    "event": "issues",
+    "action": "opened",
+    "reviewLane": "priority"
+  },
+  "execution": {
+    "handler": {
+      "type": "agent",
+      "promptRef": "prompt.md",
+      "promptVariables": {
+        "ISSUE_AUTHOR": "host.issueAuthor",
+        "REVIEW_LANE": "host.reviewLane",
+        "ISSUE_TITLE": "event.issue.title"
+      }
+    }
+  }
+}
+```
+
 Notes:
 
 - register the provider once during startup;
 - prefer `eventModel` for package-owned base attributes;
 - use raw `payload` for business-specific event facts that the package does not normalize;
 - return host-provided additional event attributes only;
+- do not return package-owned base attributes such as `event`, `repository`, `action`, or `actorLogin`;
+- use `host.*` prompt bindings only for values returned by the same-event provider;
 - let the package handle profile matching and execution permission;
 - skip the provider entirely if the host does not need extra event attributes.

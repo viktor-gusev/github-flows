@@ -1,7 +1,7 @@
 # Core Abstractions
 
 - Path: `ai/abstractions.md`
-- Version: `20260419`
+- Version: `20260520`
 
 ## Web Server
 
@@ -41,6 +41,11 @@ The provider returns host-provided additional event attributes for the current a
 
 `payload` remains available for business-specific event facts that are outside the package-owned normalized model.
 
+Those additional attributes have two supported downstream uses only:
+
+- plain matching inputs in `trigger`
+- explicit prompt-variable binding sources under the `host.*` object for that same admitted event
+
 ## Provider Holder
 
 `Github_Flows_Event_Attribute_Provider_Holder` is the public host boundary for provider registration.
@@ -57,3 +62,5 @@ The host may register at most one provider for the application lifetime.
 `Github_Flows_Web_Handler_Webhook` is the public handler for the fixed ingress path `/webhooks/github`.
 
 It admits GitHub webhook requests, builds one admitted-event model, resolves the event attribute set, resolves a profile, and starts execution only when a profile is selected.
+
+If the selected profile declares prompt variables, the package materializes them after profile selection. `host.*` bindings read from the same-event provider output preserved during attribute resolution.

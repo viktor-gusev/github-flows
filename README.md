@@ -4,6 +4,8 @@
 
 It accepts GitHub webhooks on a fixed ingress, builds one admitted-event model, derives package-owned base attributes from it, resolves zero or one effective profile from `workspaceRoot/cfg/`, and starts at most one isolated execution for each admitted event.
 
+After profile selection, prompt variables may be materialized from admitted-event data under `event.*`, host-provided additional attributes under `host.*`, and execution-preparation values under `workspace.*`.
+
 It is not a standalone application. The host application owns process lifecycle, runtime infrastructure, and startup orchestration.
 
 If you want a ready-to-run web server application built on top of this package, see [github-flows-app](https://github.com/flancer32/github-flows-app).
@@ -21,8 +23,8 @@ For human-facing reading, start here:
 
 1. [docs/overview.md](docs/overview.md)
 2. [docs/single-event-launch.md](docs/single-event-launch.md)
-3. [docs/profile-example.md](docs/profile-example.md)
-4. [docs/profile-layout.md](docs/profile-layout.md)
+3. [docs/profile-layout.md](docs/profile-layout.md)
+4. [docs/profile-example.md](docs/profile-example.md)
 5. [docs/event-attributes.md](docs/event-attributes.md)
 6. [docs/event-chains.md](docs/event-chains.md)
 
@@ -35,6 +37,7 @@ The package:
 - may ask the host for additional event attributes for the current admitted event
 - resolves candidate profiles from `workspaceRoot/cfg/`
 - selects zero or one effective execution profile
+- materializes prompt variables from `event.*`, `host.*`, and `workspace.*` when configured
 - delegates the permitted execution to the host runtime boundary
 
 The package does not:
@@ -90,6 +93,13 @@ It returns additional attributes for the current admitted event only and does no
 Use `eventModel` as the preferred source for package-owned base attributes such as `event`, `action`, `repository`, and `actorLogin`.
 
 Keep using raw `payload` for business-specific GitHub event facts that the package does not normalize.
+
+Those additional attributes may be used in two places only:
+
+- as plain matching inputs in `trigger`
+- as explicit prompt-variable binding sources under the `host.*` object during prompt materialization
+
+If a configured `host.*` prompt binding does not resolve to exactly one scalar value for the current event, prompt materialization fails and the execution does not start.
 
 ## Release Contents
 

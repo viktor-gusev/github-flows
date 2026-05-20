@@ -23,7 +23,8 @@ It is a concrete example of the model described in [single-event-launch.md](sing
       "promptVariables": {
         "PR_TITLE": "event.pull_request.title",
         "PR_BODY": "event.pull_request.body",
-        "REPOSITORY": "event.repository.full_name"
+        "REPOSITORY": "event.repository.full_name",
+        "REVIEW_LANE": "host.reviewLane"
       }
     },
     "runtime": {
@@ -49,7 +50,8 @@ It is a concrete example of the model described in [single-event-launch.md](sing
 - `trigger` uses the canonical package-owned base attributes for matching this event.
 - `handler.type` is `agent`, while `codex` remains only the concrete command being launched.
 - `runtime` contains Docker-scoped launch parameters; Docker is the mandatory execution boundary.
-- `promptVariables` bind prompt placeholders directly to admitted-event fields.
+- `promptVariables` bind prompt placeholders directly to allowed same-event sources such as `event.*`, `host.*`, and `workspace.*`.
+- `REVIEW_LANE` assumes the host provider exposes `reviewLane` for the same admitted event.
 
 ## Related Reading
 

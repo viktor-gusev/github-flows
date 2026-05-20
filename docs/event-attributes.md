@@ -33,6 +33,7 @@ Those additional attributes:
 
 - belong only to the current event
 - may participate in matching
+- may be reused later as explicit `host.*` prompt-variable sources for that same event
 - do not grant execution permission by themselves
 - do not replace package-owned selection
 
@@ -61,6 +62,32 @@ Do not use them to hide business decisions or orchestration state inside the hos
 Prompt variables are related but separate.
 
 They are resolved after one profile was selected and do not participate in matching. Use them to materialize prompt text, not to decide whether a profile applies.
+
+Bindings are direct only. The package does not interpret expressions, conditions, fallback chains, or transforms inside `promptVariables`.
+
+Allowed binding roots are:
+
+- `event.*` for admitted-event payload fields
+- `host.*` for same-event host-provided additional attributes
+- `workspace.*` for execution-preparation values already known to the package
+
+Each configured binding must resolve to exactly one scalar value for the current event. If it does not, prompt materialization fails for that execution attempt.
+
+Example:
+
+```json
+{
+  "execution": {
+    "handler": {
+      "promptVariables": {
+        "ISSUE_TITLE": "event.issue.title",
+        "REVIEW_LANE": "host.reviewLane",
+        "WORKSPACE_PATH": "workspace.workspacePath"
+      }
+    }
+  }
+}
+```
 
 ## Next Step
 

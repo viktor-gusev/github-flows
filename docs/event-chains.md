@@ -79,6 +79,7 @@ This keeps orchestration outside the package internals and aligned with native G
 - make the next step observable as a normal GitHub event whenever possible
 - keep cross-stage design outside package internals and outside profile logic
 - use host-provided additional attributes only to expose missing event facts
+- use `host.*` prompt bindings only for same-event prompt materialization, not as hidden cross-event state
 
 ## What Not To Do
 

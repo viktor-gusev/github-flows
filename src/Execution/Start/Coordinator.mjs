@@ -54,11 +54,12 @@ export default class Github_Flows_Execution_Start_Coordinator {
     /**
      * @param {{
      *   event: unknown,
+     *   hostAttributes?: Github_Flows_Event_Attribute__Set,
      *   loggingContext: Github_Flows_Event_Logging_Context__Data,
      *   selectedProfile: Github_Flows_Execution_Profile__Selected
      * }} params
      */
-    this.start = async function ({ event, loggingContext, selectedProfile }) {
+    this.start = async function ({ event, hostAttributes = {}, loggingContext, selectedProfile }) {
       requirePromptRefForAgent(selectedProfile);
 
       await logStep({
@@ -117,7 +118,13 @@ export default class Github_Flows_Execution_Start_Coordinator {
         throw error;
       }
 
-      const preparedPrompt = await executionPromptMaterializer.materialize({ event, loggingContext, selectedProfile, workspace });
+      const preparedPrompt = await executionPromptMaterializer.materialize({
+        event,
+        hostAttributes,
+        loggingContext,
+        selectedProfile,
+        workspace,
+      });
       const launchContract = executionLaunchContractFactory.create({
         loggingContext,
         prompt: preparedPrompt.prompt,

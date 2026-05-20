@@ -120,6 +120,7 @@ export default class Github_Flows_Event_Attribute_Resolver {
         baseAttributes,
         eventAttributes,
         eventModel: builtModel.event,
+        hostAttributes: additionalAttributes,
         providerUsed: Boolean(provider),
       };
     };

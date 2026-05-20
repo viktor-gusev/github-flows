@@ -4,6 +4,8 @@
 
 It accepts GitHub webhooks on a fixed ingress, builds one admitted-event model, derives package-owned base attributes from it, resolves zero or one effective profile from `workspaceRoot/cfg/`, and starts at most one isolated execution for each admitted event.
 
+After one profile is selected, prompt variables may be materialized from admitted-event fields under `event.*`, host-provided additional attributes under `host.*`, and preparation-time workspace values under `workspace.*`.
+
 This package is not a standalone application. The host application owns process lifecycle, runtime infrastructure, and startup orchestration.
 
 ## Mental Model
@@ -17,6 +19,7 @@ Important boundaries:
 - one event may produce zero or one execution
 - profile selection is deterministic and attribute-based
 - prompt variables are applied after profile selection
+- host-provided attributes may be reused as explicit `host.*` prompt-variable sources for that same event
 - cross-event orchestration is outside the package
 
 ## Documentation Map
@@ -25,8 +28,9 @@ Use these guides in this order:
 
 1. [single-event-launch.md](single-event-launch.md) for configuring one agent run for one GitHub event.
 2. [profile-layout.md](profile-layout.md) for structuring `cfg/`, profile fragments, and matching logic.
-3. [event-attributes.md](event-attributes.md) for available matching inputs and host-provided attributes.
-4. [event-chains.md](event-chains.md) for designing multi-step automation as independent stages triggered by GitHub repository events.
+3. [profile-example.md](profile-example.md) for one complete fragment example with trigger, handler, prompt variables, and runtime fields together.
+4. [event-attributes.md](event-attributes.md) for available matching inputs and host-provided attributes.
+5. [event-chains.md](event-chains.md) for designing multi-step automation as independent stages triggered by GitHub repository events.
 
 ## Typical Use
 

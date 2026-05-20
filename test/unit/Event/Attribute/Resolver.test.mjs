@@ -83,6 +83,7 @@ test("event attribute resolver returns model-derived base attributes when no pro
       event: "issue_comment",
       repository: "octocat/demo",
     },
+    hostAttributes: {},
     providerUsed: false,
   });
 });
@@ -205,6 +206,10 @@ test("event attribute resolver merges only additional plain attributes from the 
       event: "issue_comment",
       repository: "octocat/demo",
     },
+    hostAttributes: {
+      author: "octocat",
+      commentBodyLength: 128,
+    },
     providerUsed: true,
   });
 });
@@ -290,6 +295,10 @@ test("event attribute resolver passes both eventModel and raw payload to the hos
     payload,
   }]);
   assert.deepEqual(result.additionalAttributes, {
+    actorScope: "flancer64",
+    issueAuthorLogin: "flancer32",
+  });
+  assert.deepEqual(result.hostAttributes, {
     actorScope: "flancer64",
     issueAuthorLogin: "flancer32",
   });

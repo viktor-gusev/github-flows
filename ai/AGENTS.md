@@ -1,7 +1,7 @@
 # AGENTS.md
 
 - Path: `ai/AGENTS.md`
-- Version: `20260419`
+- Version: `20260520`
 
 ## Package Purpose
 
@@ -16,7 +16,7 @@ Read the documents in this order:
 1. `overview.md` for the package role and usage boundary.
 2. `abstractions.md` for the public components and contracts.
 3. `rules.md` for mandatory usage constraints.
-4. `examples/event-attribute-provider.md` for a minimal host-side setup.
+4. `examples/event-attribute-provider.md` for a minimal host-side setup and a `host.*` prompt-binding example.
 
 ## Scope
 

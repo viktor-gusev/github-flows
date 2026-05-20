@@ -58,6 +58,7 @@ test("execution start coordinator prepares workspace and materializes launch con
 
   const result = await coordinator.start({
     event: { id: "evt-1" },
+    hostAttributes: { reviewLane: "priority" },
     loggingContext: {
       eventId: "evt-1",
       eventType: "issues",
@@ -108,6 +109,9 @@ test("execution start coordinator prepares workspace and materializes launch con
     "run",
     "runtime-completed",
   ]);
+  assert.deepEqual(calls.find((call) => call.method === "materialize")?.entry.hostAttributes, {
+    reviewLane: "priority",
+  });
 });
 
 test("execution start coordinator requires profile runtime image", async () => {
@@ -138,6 +142,7 @@ test("execution start coordinator requires profile runtime image", async () => {
   await assert.rejects(
     coordinator.start({
       event: {},
+      hostAttributes: {},
       loggingContext: {
         eventId: "evt-1",
         eventType: "issues",
@@ -190,6 +195,7 @@ test("execution start coordinator rejects agent profiles without promptRef befor
   await assert.rejects(
     coordinator.start({
       event: {},
+      hostAttributes: {},
       loggingContext: {
         eventId: "evt-1",
         eventType: "issues",

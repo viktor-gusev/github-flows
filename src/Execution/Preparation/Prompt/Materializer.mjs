@@ -47,11 +47,12 @@ function buildWorkspaceValueMap(workspace) {
   };
 }
 
-function resolvePromptBindings({ event, selectedProfile, workspace }) {
+function resolvePromptBindings({ event, hostAttributes, selectedProfile, workspace }) {
   const handler = asRecord(asRecord(selectedProfile.execution).handler);
   const configuredBindings = asRecord(handler.promptVariables);
   const sources = {
     event: asRecord(event),
+    host: asRecord(hostAttributes),
     workspace: buildWorkspaceValueMap(workspace),
   };
   const resolved = {};
@@ -64,7 +65,7 @@ function resolvePromptBindings({ event, selectedProfile, workspace }) {
       throw new Error(`Prompt binding source path must be a non-empty string: ${variableName}`);
     }
     const [root] = sourcePath.split(".", 1);
-    if ((root !== "event") && (root !== "workspace")) {
+    if ((root !== "event") && (root !== "host") && (root !== "workspace")) {
       throw new Error(`Unsupported prompt binding source path: ${sourcePath}`);
     }
     const value = resolvePathValue(sources, sourcePath);
@@ -119,13 +120,14 @@ export default class Github_Flows_Execution_Preparation_Prompt_Materializer {
     /**
      * @param {{
      *   event: unknown,
+     *   hostAttributes?: Github_Flows_Event_Attribute__Set,
      *   loggingContext?: Github_Flows_Event_Logging_Context__Data,
      *   selectedProfile: Github_Flows_Execution_Profile__Selected,
      *   workspace: Github_Flows_Execution_Workspace
      * }} params
      * @returns {Promise<Github_Flows_Execution_Preparation_Prompt_Materializer__Result>}
      */
-    this.materialize = async function ({ event, loggingContext, selectedProfile, workspace }) {
+    this.materialize = async function ({ event, hostAttributes = {}, loggingContext, selectedProfile, workspace }) {
       const execution = asRecord(selectedProfile.execution);
       const handler = asRecord(execution.handler);
       const promptRef = requireString(handler.promptRef, "execution.handler.promptRef");
@@ -133,7 +135,7 @@ export default class Github_Flows_Execution_Preparation_Prompt_Materializer {
       const cfgRoot = pathModule.resolve(runtime.workspaceRoot, "cfg");
       const templatePath = pathModule.resolve(cfgRoot, promptRefBaseDir, promptRef);
       const relativeTemplatePath = pathModule.relative(cfgRoot, templatePath);
-      const promptBindings = resolvePromptBindings({ event, selectedProfile, workspace });
+      const promptBindings = resolvePromptBindings({ event, hostAttributes, selectedProfile, workspace });
 
       if (
         relativeTemplatePath.length === 0

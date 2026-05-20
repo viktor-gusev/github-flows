@@ -137,6 +137,46 @@ test("prompt materializer resolves prompt variables from preparation-time worksp
   }
 });
 
+test("prompt materializer resolves prompt variables from host-provided attributes", async () => {
+  const workspaceRoot = await fs.mkdtemp(path.join(os.tmpdir(), "github-flows-prompt-"));
+  const templateDir = path.join(workspaceRoot, "cfg", "issues");
+  await fs.mkdir(templateDir, { recursive: true });
+  await fs.writeFile(path.join(templateDir, "default.md"), "Lane {{REVIEW_LANE}} by {{ACTOR}}.", "utf8");
+
+  const materializer = new Github_Flows_Execution_Preparation_Prompt_Materializer({
+    eventLog: { async logEventProcessing() {} },
+    fsPromises: fs,
+    pathModule: path,
+    runtime: { workspaceRoot },
+  });
+
+  try {
+    const result = await materializer.materialize({
+      event: {},
+      hostAttributes: {
+        actor: "octocat",
+        reviewLane: "urgent",
+      },
+      loggingContext: createLoggingContext(),
+      selectedProfile: createSelectedProfile({
+        promptVariables: {
+          ACTOR: "host.actor",
+          REVIEW_LANE: "host.reviewLane",
+        },
+      }),
+      workspace: createWorkspace(workspaceRoot),
+    });
+
+    assert.equal(result.prompt, "Lane urgent by octocat.");
+    assert.deepEqual(result.promptBindings, {
+      ACTOR: "octocat",
+      REVIEW_LANE: "urgent",
+    });
+  } finally {
+    await fs.rm(workspaceRoot, { recursive: true, force: true });
+  }
+});
+
 test("prompt materializer does not persist prompt-bindings artifact when no bindings are applied", async () => {
   const workspaceRoot = await fs.mkdtemp(path.join(os.tmpdir(), "github-flows-prompt-"));
   const templateDir = path.join(workspaceRoot, "cfg", "issues");
@@ -227,6 +267,39 @@ test("prompt materializer fails when a declared binding resolves to a non-scalar
         selectedProfile: createSelectedProfile({
           promptVariables: {
             PR: "event.pull_request",
+          },
+        }),
+        workspace: createWorkspace(workspaceRoot),
+      }),
+      /Unable to resolve prompt binding to exactly one value/,
+    );
+  } finally {
+    await fs.rm(workspaceRoot, { recursive: true, force: true });
+  }
+});
+
+test("prompt materializer fails when a declared host binding cannot be resolved", async () => {
+  const workspaceRoot = await fs.mkdtemp(path.join(os.tmpdir(), "github-flows-prompt-"));
+  const templateDir = path.join(workspaceRoot, "cfg", "issues");
+  await fs.mkdir(templateDir, { recursive: true });
+  await fs.writeFile(path.join(templateDir, "default.md"), "Lane {{REVIEW_LANE}}.", "utf8");
+
+  const materializer = new Github_Flows_Execution_Preparation_Prompt_Materializer({
+    eventLog: { async logEventProcessing() {} },
+    fsPromises: fs,
+    pathModule: path,
+    runtime: { workspaceRoot },
+  });
+
+  try {
+    await assert.rejects(
+      materializer.materialize({
+        event: {},
+        hostAttributes: {},
+        loggingContext: createLoggingContext(),
+        selectedProfile: createSelectedProfile({
+          promptVariables: {
+            REVIEW_LANE: "host.reviewLane",
           },
         }),
         workspace: createWorkspace(workspaceRoot),

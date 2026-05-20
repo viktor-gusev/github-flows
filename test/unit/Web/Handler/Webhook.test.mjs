@@ -96,6 +96,9 @@ function createContext({ body = "{}", path = "/webhooks/github", secret = "share
             issueAuthor: "octocat",
             repository: "octocat/demo",
           },
+          hostAttributes: {
+            issueAuthor: "octocat",
+          },
           providerUsed: true,
         };
       },
@@ -200,7 +203,7 @@ function createContext({ body = "{}", path = "/webhooks/github", secret = "share
 test("webhook handler exposes teq-web handler contract", async () => {
   const handler = new Github_Flows_Web_Handler_Webhook({
     eventModelBuilder: { buildByGithubEvent: () => ({ attributes: {}, event: {} }) },
-    eventAttributeResolver: { resolveByGithubEvent: async () => ({ additionalAttributes: {}, baseAttributes: {}, eventAttributes: {}, providerUsed: false }) },
+    eventAttributeResolver: { resolveByGithubEvent: async () => ({ additionalAttributes: {}, baseAttributes: {}, eventAttributes: {}, hostAttributes: {}, providerUsed: false }) },
     eventLog: {},
     eventLoggingContext: { createByEventModel: () => ({}) },
     executionProfileResolver: { resolveByEventAttributes: async () => ({ selectedProfile: null, matchedCandidates: [], applicabilityBasis: null }) },
@@ -295,6 +298,9 @@ test("webhook handler resolves event attributes before profile selection", async
   }]);
   assert.deepEqual(startCalls, [{
     event: payload,
+    hostAttributes: {
+      issueAuthor: "octocat",
+    },
     loggingContext: {
       eventId: "delivery-123",
       eventType: "issues",

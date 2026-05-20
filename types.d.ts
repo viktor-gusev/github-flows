@@ -44,6 +44,7 @@ declare global {
     baseAttributes: Record<string, string | undefined>,
     eventModel: Github_Flows_Event_Model__Data,
     eventAttributes: Record<string, Github_Flows_Event_Attribute__Value | undefined>,
+    hostAttributes: Github_Flows_Event_Attribute__Set,
     providerUsed: boolean,
   };
   type Github_Flows_Event_Attribute_Resolver = import("./src/Event/Attribute/Resolver.mjs").default;

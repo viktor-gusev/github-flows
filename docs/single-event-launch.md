@@ -59,7 +59,8 @@ If no profile matches, the event is ignored.
       "promptVariables": {
         "REPOSITORY": "event.repository.full_name",
         "ISSUE_NUMBER": "event.issue.number",
-        "ISSUE_TITLE": "event.issue.title"
+        "ISSUE_TITLE": "event.issue.title",
+        "REVIEW_LANE": "host.reviewLane"
       }
     }
   }
@@ -72,6 +73,7 @@ If no profile matches, the event is ignored.
 Repository: {{REPOSITORY}}
 Issue: #{{ISSUE_NUMBER}}
 Title: {{ISSUE_TITLE}}
+Review Lane: {{REVIEW_LANE}}
 
 Classify the issue and propose the next repository action.
 ```
@@ -83,6 +85,7 @@ In this layout:
 - the root fragment defines default runtime and handler settings
 - the nested fragment narrows applicability to `issues/opened` in `acme/demo`
 - both fragments are merged into one candidate profile for that path
+- `promptVariables` may bind directly from `event.*`, `host.*`, or `workspace.*`
 - if that candidate is the most specific match, one Docker-isolated execution starts
 
 ## Recommended Trigger Style
@@ -95,6 +98,14 @@ Keep `trigger` focused on stable routing signals:
 - optional host-provided additional attributes for the current event
 
 Avoid embedding branching logic inside one profile. If two event situations need different behavior, create two profiles.
+
+Keep prompt bindings declarative:
+
+- use `event.*` for admitted-event payload fields
+- use `host.*` for same-event attributes supplied by the host provider
+- use `workspace.*` for preparation-time execution values such as paths or event identifiers
+
+Every declared binding must resolve to one scalar value for the current event. If a configured `host.*`, `event.*`, or `workspace.*` path does not resolve cleanly, the prompt cannot be materialized and the execution is rejected.
 
 ## Next Step
 

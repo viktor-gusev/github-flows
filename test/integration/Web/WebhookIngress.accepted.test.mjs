@@ -108,3 +108,111 @@ test("webhook ingress accepts an agent profile with promptRef", { concurrency: f
     await fs.rm(workspaceRoot, { recursive: true, force: true });
   }
 });
+
+test("webhook ingress materializes prompt variables from host-provided attributes", { concurrency: false, timeout: 5000 }, async () => {
+  const workspaceRoot = await createWorkspace();
+  const fakeStateDir = path.join(workspaceRoot, "fake-bin-state");
+  const fakeGhDir = await installFakeGh(workspaceRoot);
+  const fakeGitDir = await installFakeGit(workspaceRoot);
+  const fakeDockerDir = await installFakeDocker(workspaceRoot);
+  const originalPath = process.env.PATH;
+  const originalStateDir = process.env.FAKE_BIN_STATE_DIR;
+  const secret = "shared-secret";
+  const calls = [];
+  const logger = createLogger(calls);
+
+  process.env.PATH = `${fakeDockerDir}:${fakeGitDir}:${fakeGhDir}:${originalPath ?? ""}`;
+  process.env.FAKE_BIN_STATE_DIR = fakeStateDir;
+
+  try {
+    await writeProfile(workspaceRoot, "issues", {
+      trigger: {
+        event: "issues",
+        repository: "octocat/demo",
+        action: "opened",
+        reviewLane: "priority",
+      },
+      execution: {
+        handler: {
+          type: "agent",
+          command: ["node"],
+          args: [],
+          promptRef: "default.md",
+          promptVariables: {
+            ISSUE_TITLE: "event.issue.title",
+            REVIEW_LANE: "host.reviewLane",
+          },
+        },
+        runtime: {
+          dockerArgs: [],
+          image: "profile-image",
+          setupScript: "true",
+          env: {},
+          timeoutSec: 30,
+        },
+      },
+    });
+    await writePrompt(workspaceRoot, path.join("issues", "default.md"), "Issue {{ISSUE_TITLE}} lane {{REVIEW_LANE}}");
+
+    const { handler } = await createProductHarness({
+      eventAttributeProvider: {
+        async getAttributes() {
+          return {
+            reviewLane: "priority",
+          };
+        },
+      },
+      logger,
+      workspaceRoot,
+    });
+    const request = createRequest(JSON.stringify({
+      action: "opened",
+      issue: {
+        number: 42,
+        title: "Integration issue",
+      },
+      repository: {
+        id: 1,
+        name: "demo",
+        owner: { login: "octocat" },
+      },
+    }), secret, { deliveryId: "evt-host-1" });
+    const responseCalls = [];
+    const response = {
+      headersSent: false,
+      writeHead(code, headers) {
+        responseCalls.push({ method: "writeHead", code, headers });
+      },
+      end(bodyText) {
+        responseCalls.push({ method: "end", body: bodyText });
+      },
+    };
+    const context = {
+      request,
+      response,
+      complete() {
+        responseCalls.push({ method: "complete" });
+      },
+    };
+
+    await handler.handle(context);
+
+    assert.deepEqual(responseCalls, [
+      { method: "writeHead", code: 202, headers: { "Content-Type": "application/json; charset=utf-8" } },
+      { method: "end", body: JSON.stringify({ status: "accepted" }) },
+      { method: "complete" },
+    ]);
+    const promptBindings = JSON.parse(await fs.readFile(
+      path.join(workspaceRoot, "log", "run", "octocat", "demo", "evt-host-1", "prompt-bindings.json"),
+      "utf8",
+    ));
+    assert.deepEqual(promptBindings, {
+      ISSUE_TITLE: "Integration issue",
+      REVIEW_LANE: "priority",
+    });
+  } finally {
+    process.env.PATH = originalPath;
+    process.env.FAKE_BIN_STATE_DIR = originalStateDir;
+    await fs.rm(workspaceRoot, { recursive: true, force: true });
+  }
+});

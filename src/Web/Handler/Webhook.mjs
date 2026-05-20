@@ -181,7 +181,12 @@ export default class Github_Flows_Web_Handler_Webhook {
 
         if (selectedProfile) {
           await eventLog.persistEffectiveProfile({ loggingContext, selectedProfile });
-          const outcome = await executionStartCoordinator.start({ event: payload, loggingContext, selectedProfile });
+          const outcome = await executionStartCoordinator.start({
+            event: payload,
+            hostAttributes: attributeResolution.hostAttributes,
+            loggingContext,
+            selectedProfile,
+          });
           if (!outcome.completed || outcome.exit !== "success") {
             throw new Error(`Execution runtime ended with status: ${outcome.exit}`);
           }

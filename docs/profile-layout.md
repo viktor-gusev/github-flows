@@ -46,6 +46,8 @@ Typical use:
 - lower fragments narrow the trigger
 - lower fragments override prompt or runtime details for one event stage
 
+When a fragment defines `execution.handler.promptRef`, that prompt path is resolved relative to the directory containing that fragment's `profile.json`.
+
 ## Matching Model
 
 Candidate profiles are matched against the current event attribute set.
@@ -66,6 +68,7 @@ Use the tree to separate concerns:
 - root fragment for shared runtime defaults
 - repository fragment for repo-level defaults
 - event-stage fragment for one concrete trigger and one prompt
+- keep prompt-variable declarations close to the fragment that owns the corresponding prompt template
 
 This keeps each fragment small and makes later event-chain design easier to read.
 

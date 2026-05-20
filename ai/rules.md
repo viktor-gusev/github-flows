@@ -1,7 +1,7 @@
 # Usage Rules
 
 - Path: `ai/rules.md`
-- Version: `20260419`
+- Version: `20260520`
 
 ## Structural Rules
 
@@ -18,6 +18,14 @@
 - The provider should prefer `eventModel` for package-owned base attributes.
 - The provider may use raw `payload` for business-specific GitHub event facts outside the normalized package-owned model.
 - The provider should be registered during host startup before the web server begins serving requests.
+
+## Prompt Binding Rules
+
+- `promptVariables` are resolved only after one profile was selected.
+- Allowed binding roots are `event.*`, `host.*`, and `workspace.*`.
+- `host.*` may address only same-event provider output.
+- Each binding must resolve to exactly one scalar value.
+- Failed prompt binding resolution prevents execution startup for that event.
 
 ## Runtime Rules
 

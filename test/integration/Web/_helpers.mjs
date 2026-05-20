@@ -135,7 +135,7 @@ export const createLogger = function (calls) {
   };
 };
 
-export const createProductHarness = async function ({ workspaceRoot, logger }) {
+export const createProductHarness = async function ({ eventAttributeProvider, logger, workspaceRoot }) {
   const runtime = {
     httpHost: "127.0.0.1",
     httpPort: 3000,
@@ -152,6 +152,7 @@ export const createProductHarness = async function ({ workspaceRoot, logger }) {
   });
   const eventModelBuilder = new Github_Flows_Event_Model_Builder();
   const eventAttributeProviderHolder = new Github_Flows_Event_Attribute_Provider_Holder();
+  eventAttributeProviderHolder.set(eventAttributeProvider);
   const executionProfileResolver = new Github_Flows_Execution_Profile_Resolver({
     fsPromises: fs,
     logger,
