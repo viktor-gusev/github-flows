@@ -2,6 +2,25 @@
 
 All notable changes to `@teqfw/github-flows` will be documented in this file.
 
+## 0.4.0 - 2026-05-20
+
+Release focused on execution-start hardening, repository-cache synchronization safety, and prompt binding expansion.
+
+### Added
+
+- repository-cache synchronization locking with bounded wait, stale-lock recovery, and recreation coverage for pull refresh failures;
+- support for prompt-variable bindings from same-event host-provided attributes under `host.*`, alongside `event.*` and `workspace.*`;
+- integration coverage for accepted webhook execution, host-backed prompt bindings, and rejection of agent profiles without `promptRef`;
+- unit coverage for repository-cache locking, runtime lock configuration, host-backed prompt binding resolution, and enriched webhook failure paths.
+
+### Changed
+
+- runtime execution contracts now consistently assume Docker as the only supported execution boundary;
+- agent execution is rejected before preparation side effects when the selected profile does not expose `execution.handler.promptRef`;
+- webhook failure handling now records execution failures explicitly in the event-scoped processing log;
+- published `README.md`, `docs/`, and `ai/` documentation now align on `host.*` prompt bindings, prompt materialization rules, and provider responsibilities;
+- development dependencies and lockfile state were refreshed after `npm update`, including npm-sourced `@teqfw/di` and newer `@types/node` / `undici-types` entries.
+
 ## 0.3.0 - 2026-04-21
 
 Release focused on admitted-event normalization and published package guidance.
