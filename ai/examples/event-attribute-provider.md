@@ -1,7 +1,7 @@
 # Event Attribute Provider Example
 
 - Path: `ai/examples/event-attribute-provider.md`
-- Version: `20260520`
+- Version: `20260528`
 
 This example shows how a host application can register one optional `Github_Flows_Event_Attribute_Provider` during startup.
 
@@ -83,7 +83,7 @@ Example profile fragment using the same-event provider output for prompt materia
     "repository": "acme/demo",
     "event": "issues",
     "action": "opened",
-    "reviewLane": "priority"
+    "reviewLane": ["priority", "expedite"]
   },
   "execution": {
     "handler": {
@@ -106,6 +106,8 @@ Notes:
 - use raw `payload` for business-specific event facts that the package does not normalize;
 - return host-provided additional event attributes only;
 - do not return package-owned base attributes such as `event`, `repository`, `action`, or `actorLogin`;
+- trigger arrays remain configuration-time sugar, are expanded into scalar candidates after profile merge and before matching, and do not introduce runtime membership checks;
+- empty trigger arrays contribute no candidate profiles;
 - use `host.*` prompt bindings only for values returned by the same-event provider;
 - let the package handle profile matching and execution permission;
 - skip the provider entirely if the host does not need extra event attributes.

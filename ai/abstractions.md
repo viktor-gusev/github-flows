@@ -1,7 +1,7 @@
 # Core Abstractions
 
 - Path: `ai/abstractions.md`
-- Version: `20260520`
+- Version: `20260528`
 
 ## Web Server
 
@@ -43,7 +43,7 @@ The provider returns host-provided additional event attributes for the current a
 
 Those additional attributes have two supported downstream uses only:
 
-- plain matching inputs in `trigger`
+- plain matching inputs in `trigger`, where scalar values or arrays of scalar values are supported, and arrays are configuration-time sugar that expand into scalar candidate profiles before matching
 - explicit prompt-variable binding sources under the `host.*` object for that same admitted event
 
 ## Provider Holder
@@ -61,6 +61,6 @@ The host may register at most one provider for the application lifetime.
 
 `Github_Flows_Web_Handler_Webhook` is the public handler for the fixed ingress path `/webhooks/github`.
 
-It admits GitHub webhook requests, builds one admitted-event model, resolves the event attribute set, resolves a profile, and starts execution only when a profile is selected.
+It admits GitHub webhook requests, builds one admitted-event model, resolves the event attribute set, resolves merged profiles and expanded scalar candidates, and starts execution only when a profile is selected.
 
 If the selected profile declares prompt variables, the package materializes them after profile selection. `host.*` bindings read from the same-event provider output preserved during attribute resolution.

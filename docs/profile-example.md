@@ -12,7 +12,8 @@ It is a concrete example of the model described in [single-event-launch.md](sing
     "event": "pull_request",
     "repository": "acme/demo",
     "action": "opened",
-    "actorLogin": "octocat"
+    "actorLogin": ["octocat", "hubot"],
+    "reviewLane": "priority"
   },
   "execution": {
     "handler": {
@@ -47,7 +48,8 @@ It is a concrete example of the model described in [single-event-launch.md](sing
 
 ## What It Shows
 
-- `trigger` uses the canonical package-owned base attributes for matching this event.
+- `trigger` may combine canonical package-owned base attributes with host-provided additional attributes for matching this event.
+- `actorLogin` uses trigger-array sugar that expands into scalar candidate profiles after profile merge and before matching.
 - `handler.type` is `agent`, while `codex` remains only the concrete command being launched.
 - `runtime` contains Docker-scoped launch parameters; Docker is the mandatory execution boundary.
 - `promptVariables` bind prompt placeholders directly to allowed same-event sources such as `event.*`, `host.*`, and `workspace.*`.

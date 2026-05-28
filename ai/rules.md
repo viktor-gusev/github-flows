@@ -1,7 +1,7 @@
 # Usage Rules
 
 - Path: `ai/rules.md`
-- Version: `20260520`
+- Version: `20260528`
 
 ## Structural Rules
 
@@ -18,6 +18,16 @@
 - The provider should prefer `eventModel` for package-owned base attributes.
 - The provider may use raw `payload` for business-specific GitHub event facts outside the normalized package-owned model.
 - The provider should be registered during host startup before the web server begins serving requests.
+
+## Trigger Rules
+
+- Trigger values may be scalar values or arrays of scalar values.
+- A scalar trigger value is `string`, `number`, `boolean`, or `null`.
+- Trigger arrays are configuration-time sugar only.
+- Trigger arrays are expanded into scalar candidate profiles after hierarchical profile merge and before matching.
+- Runtime matching remains scalar equality.
+- Empty trigger arrays contribute no candidate profiles.
+- The host must not treat trigger arrays as host-controlled execution permission logic.
 
 ## Prompt Binding Rules
 

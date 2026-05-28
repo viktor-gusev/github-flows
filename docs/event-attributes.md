@@ -15,15 +15,21 @@ These are the default routing inputs for `trigger`.
 
 Example:
 
+`scalar` means `string`, `number`, `boolean`, or `null`.
+
 ```json
 {
   "trigger": {
-    "repository": "acme/demo",
-    "event": "pull_request",
-    "action": "opened"
+    "event": "scalar | [scalar, ...]",
+    "repository": "scalar | [scalar, ...]",
+    "action": "scalar | [scalar, ...]",
+    "actorLogin": "scalar | [scalar, ...]",
+    "ADDITIONAL_ATTRIBUTE_NAME": "scalar | [scalar, ...]"
   }
 }
 ```
+
+Trigger arrays are configuration-time sugar only. After hierarchical profile merging, the package expands trigger arrays into scalar candidate profiles. Runtime matching then compares scalar event attributes with scalar candidate trigger values only. Empty trigger arrays contribute no candidate profiles.
 
 ## Host-Provided Attributes
 
@@ -43,6 +49,8 @@ The host provider works alongside the package-owned admitted-event model:
 
 - use package-owned base attributes such as `event`, `repository`, `action`, and optional `actorLogin` directly when they are sufficient;
 - use host-provided attributes when routing depends on additional event facts outside that normalized base set.
+
+Host-provided additional attributes follow the same trigger-value model as package-owned base attributes: a trigger may use either one scalar value or an array of scalar alternatives for that attribute.
 
 Example use cases:
 

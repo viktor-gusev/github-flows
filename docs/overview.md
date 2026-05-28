@@ -12,12 +12,13 @@ This package is not a standalone application. The host application owns process 
 
 The package handles one event at a time:
 
-`GitHub event -> admitted-event model -> package-owned base attributes + optional host-provided additional attributes -> matching profile -> launch contract -> one isolated run`
+`GitHub event -> admitted-event model -> package-owned base attributes + optional host-provided additional attributes -> merged profiles -> trigger-array expansion -> candidate profile set -> zero or one effective profile -> launch contract -> one isolated run`
 
 Important boundaries:
 
 - one event may produce zero or one execution
 - profile selection is deterministic and attribute-based
+- the persisted effective profile records the selected expanded scalar trigger values rather than trigger arrays as active matching conditions
 - prompt variables are applied after profile selection
 - host-provided attributes may be reused as explicit `host.*` prompt-variable sources for that same event
 - cross-event orchestration is outside the package

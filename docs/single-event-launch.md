@@ -11,9 +11,10 @@ For one event, the package:
 1. derives package-owned base attributes from the admitted-event model
 2. optionally asks the host for additional event attributes
 3. scans `workspaceRoot/cfg/` for `profile.json` fragments
-4. builds candidate profiles by hierarchical merge
-5. selects the most specific matching profile
-6. starts one execution if a profile was selected
+4. builds merged profiles by hierarchical merge
+5. expands trigger arrays into scalar candidate profiles
+6. selects the most specific matching profile
+7. starts one execution if a profile was selected
 
 Before step 1, the package admits the webhook request and builds one admitted-event model. Package-owned base attributes are derived from that model; host-provided additional attributes may still come from the raw payload through the optional host provider.
 
@@ -84,7 +85,8 @@ In this layout:
 
 - the root fragment defines default runtime and handler settings
 - the nested fragment narrows applicability to `issues/opened` in `acme/demo`
-- both fragments are merged into one candidate profile for that path
+- both fragments are merged into one merged profile for that path
+- that merged profile produces one scalar candidate profile because no trigger arrays are used here
 - `promptVariables` may bind directly from `event.*`, `host.*`, or `workspace.*`
 - if that candidate is the most specific match, one Docker-isolated execution starts
 
@@ -95,9 +97,10 @@ Keep `trigger` focused on stable routing signals:
 - `repository`
 - `event`
 - `action`
+- optional `actorLogin`
 - optional host-provided additional attributes for the current event
 
-Avoid embedding branching logic inside one profile. If two event situations need different behavior, create two profiles.
+Trigger arrays are allowed as declarative sugar when one merged profile should expand into scalar alternatives for trigger attributes. Runtime matching still uses scalar values only after expansion.
 
 Keep prompt bindings declarative:
 

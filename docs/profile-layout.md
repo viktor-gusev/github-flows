@@ -6,7 +6,7 @@ This guide describes how to organize `workspaceRoot/cfg/` and how profile fragme
 
 One `profile.json` file is one fragment, not one complete execution profile.
 
-Fragments are merged hierarchically along one filesystem path. Each merged path produces one candidate profile. The package then selects the most specific matching candidate for the current event.
+Fragments are merged hierarchically along one filesystem path. One complete path produces one merged profile. Trigger-array expansion may then produce zero, one, or multiple scalar candidate profiles from that merged profile. The package then selects the most specific matching candidate for the current event.
 
 ## Recommended Layout
 
@@ -51,6 +51,8 @@ When a fragment defines `execution.handler.promptRef`, that prompt path is resol
 ## Matching Model
 
 Candidate profiles are matched against the current event attribute set.
+
+Trigger arrays are configuration-time sugar only. The package expands them after hierarchical merge and before matching. Runtime matching compares scalar event attributes with scalar candidate trigger values only.
 
 Selection rules:
 
