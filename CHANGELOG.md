@@ -2,6 +2,21 @@
 
 All notable changes to `@teqfw/github-flows` will be documented in this file.
 
+## 0.5.0 - 2026-05-28 - Trigger-array profile resolution coverage
+
+Release focused on end-to-end verification of trigger-array profile resolution and effective-profile selection through the real webhook flow.
+
+### Added
+
+- integration coverage for scalar trigger matching, `actorLogin` trigger arrays, host-provided trigger arrays, and multi-attribute trigger-array combinations through webhook ingress;
+- integration assertions for persisted event artifacts, including `event.json`, `effective-profile.json`, `prompt-bindings.json`, and event-scoped decision logs;
+- stronger runtime command assertions covering repository cache sync, workspace preparation, and Docker launch behavior in positive and negative flows.
+
+### Changed
+
+- trigger-array profile resolution coverage now verifies hierarchical merge before expansion, empty-array no-match handling, and deterministic candidate-selection precedence through the composed runtime path;
+- package version metadata was updated to `0.5.0`.
+
 ## 0.4.0 - 2026-05-20
 
 Release focused on execution-start hardening, repository-cache synchronization safety, and prompt binding expansion.
