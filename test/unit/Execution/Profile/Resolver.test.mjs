@@ -271,6 +271,157 @@ test("profile resolver does not use prompt variables for matching or tie-breakin
   }
 });
 
+test("profile resolver expands trigger arrays into scalar candidates before matching", async () => {
+  const workspaceRoot = await fs.mkdtemp(path.join(os.tmpdir(), "github-flows-profile-"));
+  const resolver = new Github_Flows_Execution_Profile_Resolver({
+    fsPromises: fs,
+    pathModule: path,
+    runtime: { workspaceRoot },
+  });
+
+  try {
+    await writeProfile(workspaceRoot, ".", {
+      trigger: {
+        actorLogin: ["flancer64", "flancer32"],
+        event: "issues",
+      },
+      execution: { handler: { type: "agent", command: ["node"], args: [], promptRef: "root.md" }, runtime: { image: "root-image", setupScript: "true", env: {}, timeoutSec: 30 } },
+    });
+
+    const result = await resolver.resolveByEventAttributes({
+      eventAttributes: {
+        actorLogin: "flancer32",
+        event: "issues",
+      },
+    });
+
+    assert.deepEqual(result.candidates.map((item) => item.trigger), [
+      { actorLogin: "flancer64", event: "issues" },
+      { actorLogin: "flancer32", event: "issues" },
+    ]);
+    assert.deepEqual(result.matchedCandidates.map((item) => item.trigger), [
+      { actorLogin: "flancer32", event: "issues" },
+    ]);
+    assert.deepEqual(result.selectedProfile?.trigger, {
+      actorLogin: "flancer32",
+      event: "issues",
+    });
+
+    const firstResult = await resolver.resolveByEventAttributes({
+      eventAttributes: {
+        actorLogin: "flancer64",
+        event: "issues",
+      },
+    });
+    assert.deepEqual(firstResult.selectedProfile?.trigger, {
+      actorLogin: "flancer64",
+      event: "issues",
+    });
+  } finally {
+    await fs.rm(workspaceRoot, { recursive: true, force: true });
+  }
+});
+
+test("profile resolver expands trigger arrays across multiple attributes and host-provided attributes", async () => {
+  const workspaceRoot = await fs.mkdtemp(path.join(os.tmpdir(), "github-flows-profile-"));
+  const resolver = new Github_Flows_Execution_Profile_Resolver({
+    fsPromises: fs,
+    pathModule: path,
+    runtime: { workspaceRoot },
+  });
+
+  try {
+    await writeProfile(workspaceRoot, ".", {
+      trigger: {
+        actorLogin: ["flancer64", "flancer32"],
+        event: "issues",
+        reviewLane: ["priority", "expedite"],
+      },
+      execution: { handler: { type: "agent", command: ["node"], args: [], promptRef: "root.md" }, runtime: { image: "root-image", setupScript: "true", env: {}, timeoutSec: 30 } },
+    });
+
+    const result = await resolver.resolveByEventAttributes({
+      eventAttributes: {
+        actorLogin: "flancer64",
+        event: "issues",
+        reviewLane: "expedite",
+      },
+    });
+
+    assert.deepEqual(result.candidates.map((item) => item.trigger), [
+      { actorLogin: "flancer64", event: "issues", reviewLane: "priority" },
+      { actorLogin: "flancer64", event: "issues", reviewLane: "expedite" },
+      { actorLogin: "flancer32", event: "issues", reviewLane: "priority" },
+      { actorLogin: "flancer32", event: "issues", reviewLane: "expedite" },
+    ]);
+    assert.deepEqual(result.matchedCandidates.map((item) => item.trigger), [
+      { actorLogin: "flancer64", event: "issues", reviewLane: "expedite" },
+    ]);
+  } finally {
+    await fs.rm(workspaceRoot, { recursive: true, force: true });
+  }
+});
+
+test("profile resolver ignores merged profiles with empty trigger arrays", async () => {
+  const workspaceRoot = await fs.mkdtemp(path.join(os.tmpdir(), "github-flows-profile-"));
+  const resolver = new Github_Flows_Execution_Profile_Resolver({
+    fsPromises: fs,
+    pathModule: path,
+    runtime: { workspaceRoot },
+  });
+
+  try {
+    await writeProfile(workspaceRoot, ".", {
+      trigger: { event: "issues", actorLogin: [] },
+      execution: { handler: { type: "agent", command: ["node"], args: [], promptRef: "root.md" }, runtime: { image: "root-image", setupScript: "true", env: {}, timeoutSec: 30 } },
+    });
+
+    const result = await resolver.resolveByEventAttributes({
+      eventAttributes: {
+        actorLogin: "flancer64",
+        event: "issues",
+      },
+    });
+
+    assert.deepEqual(result.candidates, []);
+    assert.equal(result.selectedProfile, null);
+    assert.deepEqual(result.matchedCandidates, []);
+  } finally {
+    await fs.rm(workspaceRoot, { recursive: true, force: true });
+  }
+});
+
+test("profile resolver rejects non-scalar trigger array members", async () => {
+  const workspaceRoot = await fs.mkdtemp(path.join(os.tmpdir(), "github-flows-profile-"));
+  const resolver = new Github_Flows_Execution_Profile_Resolver({
+    fsPromises: fs,
+    pathModule: path,
+    runtime: { workspaceRoot },
+  });
+
+  try {
+    await writeProfile(workspaceRoot, ".", {
+      trigger: {
+        actorLogin: ["flancer64", { unexpected: true }],
+        event: "issues",
+      },
+      execution: { handler: { type: "agent", command: ["node"], args: [], promptRef: "root.md" }, runtime: { image: "root-image", setupScript: "true", env: {}, timeoutSec: 30 } },
+    });
+
+    await assert.rejects(
+      resolver.resolveByEventAttributes({
+        eventAttributes: {
+          actorLogin: "flancer64",
+          event: "issues",
+        },
+      }),
+      /arrays may contain only scalar values/,
+    );
+  } finally {
+    await fs.rm(workspaceRoot, { recursive: true, force: true });
+  }
+});
+
 test("profile resolver returns no selected profile when nothing matches", async () => {
   const workspaceRoot = await fs.mkdtemp(path.join(os.tmpdir(), "github-flows-profile-"));
   const resolver = new Github_Flows_Execution_Profile_Resolver({
@@ -295,6 +446,41 @@ test("profile resolver returns no selected profile when nothing matches", async 
 
     assert.equal(result.selectedProfile, null);
     assert.deepEqual(result.matchedCandidates, []);
+  } finally {
+    await fs.rm(workspaceRoot, { recursive: true, force: true });
+  }
+});
+
+test("profile resolver preserves deterministic selection precedence across matching expanded candidates", async () => {
+  const workspaceRoot = await fs.mkdtemp(path.join(os.tmpdir(), "github-flows-profile-"));
+  const resolver = new Github_Flows_Execution_Profile_Resolver({
+    fsPromises: fs,
+    pathModule: path,
+    runtime: { workspaceRoot },
+  });
+
+  try {
+    await writeProfile(workspaceRoot, "a", {
+      trigger: { event: "issues", actorLogin: ["flancer64", "flancer32"] },
+      execution: { handler: { type: "agent", command: ["node"], args: [], promptRef: "a.md" }, runtime: { image: "a-image", setupScript: "true", env: {}, timeoutSec: 30 } },
+    });
+    await writeProfile(workspaceRoot, "b", {
+      trigger: { event: "issues", actorLogin: "flancer32" },
+      execution: { handler: { type: "agent", command: ["node"], args: [], promptRef: "b.md" }, runtime: { image: "b-image", setupScript: "true", env: {}, timeoutSec: 30 } },
+    });
+
+    const result = await resolver.resolveByEventAttributes({
+      eventAttributes: {
+        actorLogin: "flancer32",
+        event: "issues",
+      },
+    });
+
+    assert.equal(result.selectedProfile?.id, "a/profile.json");
+    assert.deepEqual(result.matchedCandidates.map((item) => item.id), [
+      "a/profile.json",
+      "b/profile.json",
+    ]);
   } finally {
     await fs.rm(workspaceRoot, { recursive: true, force: true });
   }

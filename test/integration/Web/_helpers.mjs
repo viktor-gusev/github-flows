@@ -108,11 +108,15 @@ exit 1
 export const installFakeDocker = async function (workspaceRoot) {
   const binDir = path.join(workspaceRoot, "bin");
   const scriptPath = path.join(binDir, "docker");
+  const stateDir = path.join(workspaceRoot, "fake-bin-state");
   await fs.mkdir(binDir, { recursive: true });
+  await fs.mkdir(stateDir, { recursive: true });
   await fs.writeFile(
     scriptPath,
     `#!/usr/bin/env bash
 set -euo pipefail
+state_dir="\${FAKE_BIN_STATE_DIR:?}"
+printf 'docker %s\\n' "$*" >> "$state_dir/commands.log"
 if [ "$1" = "run" ]; then
   exit 0
 fi
@@ -242,4 +246,97 @@ export const createRequest = function (body, secret, { deliveryId = "evt-1", eve
     request.emit("end");
   });
   return request;
+};
+
+export const createIssueOpenedPayload = function ({
+  action = "opened",
+  issueNumber = 42,
+  issueTitle = "Integration issue",
+  owner = "octocat",
+  repo = "demo",
+  repositoryId = 1,
+  senderLogin = "flancer64",
+} = {}) {
+  return {
+    action,
+    issue: {
+      number: issueNumber,
+      title: issueTitle,
+    },
+    repository: {
+      id: repositoryId,
+      name: repo,
+      owner: { login: owner },
+    },
+    sender: {
+      login: senderLogin,
+    },
+  };
+};
+
+export const createResponseRecorder = function () {
+  const responseCalls = [];
+  const response = {
+    headersSent: false,
+    writeHead(code, headers) {
+      responseCalls.push({ method: "writeHead", code, headers });
+    },
+    end(bodyText) {
+      responseCalls.push({ method: "end", body: bodyText });
+    },
+  };
+  const context = {
+    response,
+    complete() {
+      responseCalls.push({ method: "complete" });
+    },
+  };
+
+  return {
+    context,
+    responseCalls,
+  };
+};
+
+export const handleWebhookEvent = async function ({
+  deliveryId = "evt-1",
+  event = "issues",
+  handler,
+  payload,
+  secret = "shared-secret",
+}) {
+  const { context, responseCalls } = createResponseRecorder();
+  context.request = createRequest(JSON.stringify(payload), secret, { deliveryId, event });
+  await handler.handle(context);
+  return responseCalls;
+};
+
+export const getEventLogDir = function (workspaceRoot, {
+  deliveryId,
+  owner = "octocat",
+  repo = "demo",
+} = {}) {
+  return path.join(workspaceRoot, "log", "run", owner, repo, deliveryId);
+};
+
+export const readJson = async function (filePath) {
+  return JSON.parse(await fs.readFile(filePath, "utf8"));
+};
+
+export const readOptionalJson = async function (filePath) {
+  try {
+    return await readJson(filePath);
+  } catch (error) {
+    if (error?.code === "ENOENT") return null;
+    throw error;
+  }
+};
+
+export const readOptionalText = async function (filePath) {
+  try {
+    return await fs.readFile(filePath, "utf8");
+  } catch (error) {
+    if (error?.code === "ENOENT") return null;
+    throw error;
+  }
 };

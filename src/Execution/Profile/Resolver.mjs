@@ -35,6 +35,40 @@ function cloneValue(value) {
 }
 
 /**
+ * @param {unknown} value
+ * @returns {value is string | number | boolean | null}
+ */
+function isScalarTriggerValue(value) {
+  return (
+    value === null
+    || typeof value === "string"
+    || typeof value === "number"
+    || typeof value === "boolean"
+  );
+}
+
+/**
+ * @param {unknown} value
+ * @param {string} triggerKey
+ * @returns {string | number | boolean | null}
+ */
+function requireScalarTriggerValue(value, triggerKey) {
+  if (!isScalarTriggerValue(value)) {
+    throw new Error(`Unsupported trigger value for ${triggerKey}: arrays may contain only scalar values.`);
+  }
+  return value;
+}
+
+/**
+ * @param {unknown} value
+ * @returns {string}
+ */
+function triggerSortKey(value) {
+  if (value === null) return "null";
+  return `${typeof value}:${String(value)}`;
+}
+
+/**
  * @param {unknown} base
  * @param {unknown} override
  * @returns {Record<string, unknown>}
@@ -83,6 +117,39 @@ function mergeCandidateFragments(fragments) {
     const promptRefBaseDir = typeof nextHandler.promptRef === "string" ? fragment.directory : result.promptRefBaseDir;
     return { execution, promptRefBaseDir, trigger };
   }, { trigger: {}, execution: {}, promptRefBaseDir: undefined });
+}
+
+/**
+ * @param {Record<string, unknown>} trigger
+ * @returns {Record<string, string | number | boolean | null>[]}
+ */
+function expandTriggerCandidates(trigger) {
+  const entries = Object.entries(trigger);
+  const candidates = [{}];
+
+  for (const [key, value] of entries) {
+    if (Array.isArray(value)) {
+      if (value.length === 0) return [];
+      const alternatives = value.map((item) => requireScalarTriggerValue(item, key));
+      const nextCandidates = [];
+      for (const candidate of candidates) {
+        for (const alternative of alternatives) {
+          nextCandidates.push({
+            ...candidate,
+            [key]: alternative,
+          });
+        }
+      }
+      candidates.splice(0, candidates.length, ...nextCandidates);
+    } else {
+      const scalarValue = requireScalarTriggerValue(value, key);
+      for (const candidate of candidates) {
+        candidate[key] = scalarValue;
+      }
+    }
+  }
+
+  return candidates;
 }
 
 /**
@@ -358,7 +425,17 @@ export default class Github_Flows_Execution_Profile_Resolver {
      */
     this.resolveByEventAttributes = async function ({ eventAttributes, loggingContext }) {
       const candidates = await buildCandidates();
-      const matches = candidates
+      const expandedCandidates = candidates.flatMap((candidate) => {
+        const expandedTriggers = expandTriggerCandidates(candidate.profile.trigger);
+        return expandedTriggers.map((expandedTrigger, index) => ({
+          ...candidate,
+          profile: {
+            ...candidate.profile,
+            trigger: expandedTrigger,
+          },
+        }));
+      });
+      const matches = expandedCandidates
         .filter((candidate) => matchesTrigger(candidate.profile.trigger, eventAttributes))
         .map((candidate) => ({
           ...candidate,
@@ -367,7 +444,11 @@ export default class Github_Flows_Execution_Profile_Resolver {
 
       const effective = matches
         .slice()
-        .sort((left, right) => right.specificity - left.specificity || left.orderKey.localeCompare(right.orderKey))[0];
+        .sort((left, right) => (
+          right.specificity - left.specificity
+          || left.orderKey.localeCompare(right.orderKey)
+          || triggerSortKey(left.profile.trigger).localeCompare(triggerSortKey(right.profile.trigger))
+        ))[0];
 
       logger?.logComponentAction?.({
         component: "Github_Flows_Execution_Profile_Resolver",
@@ -397,7 +478,7 @@ export default class Github_Flows_Execution_Profile_Resolver {
 
       return {
         applicabilityBasis: effective?.profile.trigger ?? null,
-        candidates: candidates.map((candidate) => ({
+        candidates: expandedCandidates.map((candidate) => ({
           id: candidate.id,
           orderKey: candidate.orderKey,
           trigger: candidate.profile.trigger,
