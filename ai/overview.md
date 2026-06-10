@@ -1,7 +1,7 @@
 # Package Overview
 
 - Path: `ai/overview.md`
-- Version: `20260520`
+- Version: `20260610`
 
 ## Purpose
 
@@ -16,7 +16,7 @@ Summarizes the public role of `@teqfw/github-flows` for agents and host applicat
 - builds one admitted-event model for each admitted event;
 - may request host-provided additional event attributes for the current admitted event;
 - resolves zero or one effective execution profile from scalar candidate profiles produced after trigger-array expansion;
-- materializes prompt variables from same-event `event.*`, `host.*`, and `workspace.*` sources when the selected profile declares them;
+- materializes prompt variables from same-event `event.*`, `host.*`, and `workspace.*` sources when the selected profile declares them, using either legacy flat required-only bindings or the structured `required` / `optional` form;
 - delegates the permitted execution to the host runtime boundary;
 - records event-scoped archival logs for admitted events;
 - exposes observational log indexes for alternate navigation over admitted-event archives.

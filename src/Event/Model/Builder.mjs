@@ -3,7 +3,7 @@
  * @namespace Github_Flows_Event_Model_Builder
  * @description Builds the canonical admitted-event model and base attributes from one admitted GitHub event.
  */
-
+// Internal helpers.
 /**
  * @param {unknown} value
  * @returns {Record<string, unknown>}
@@ -92,7 +92,3 @@ export default class Github_Flows_Event_Model_Builder {
     };
   }
 }
-
-export const __deps__ = Object.freeze({
-  default: Object.freeze({}),
-});

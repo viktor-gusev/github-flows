@@ -22,10 +22,17 @@ It is a concrete example of the model described in [single-event-launch.md](sing
       "args": ["exec", "--dangerously-bypass-approvals-and-sandbox", "-C", "/workspace/repo"],
       "promptRef": "prompts/default.md",
       "promptVariables": {
-        "PR_TITLE": "event.pull_request.title",
-        "PR_BODY": "event.pull_request.body",
-        "REPOSITORY": "event.repository.full_name",
-        "REVIEW_LANE": "host.reviewLane"
+        "required": {
+          "PR_TITLE": "event.pull_request.title",
+          "PR_BODY": "event.pull_request.body",
+          "REPOSITORY": "event.repository.full_name"
+        },
+        "optional": {
+          "REVIEW_LANE": {
+            "path": "host.reviewLane",
+            "default": ""
+          }
+        }
       }
     },
     "runtime": {
@@ -52,8 +59,8 @@ It is a concrete example of the model described in [single-event-launch.md](sing
 - `actorLogin` uses trigger-array sugar that expands into scalar candidate profiles after profile merge and before matching.
 - `handler.type` is `agent`, while `codex` remains only the concrete command being launched.
 - `runtime` contains Docker-scoped launch parameters; Docker is the mandatory execution boundary.
-- `promptVariables` bind prompt placeholders directly to allowed same-event sources such as `event.*`, `host.*`, and `workspace.*`.
-- `REVIEW_LANE` assumes the host provider exposes `reviewLane` for the same admitted event.
+- `promptVariables.required` binds mandatory prompt placeholders directly to allowed same-event sources such as `event.*`, `host.*`, and `workspace.*`.
+- `promptVariables.optional` allows explicit fallback defaults for values such as `REVIEW_LANE`.
 
 ## Related Reading
 

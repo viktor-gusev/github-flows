@@ -3,6 +3,7 @@
  * @namespace Github_Flows_Event_Attribute_Resolver
  * @description Resolves the event attribute set used for profile matching, including optional host-provided additional attributes.
  */
+// Internal helpers.
 /**
  * @param {unknown} value
  * @returns {Record<string, unknown>}

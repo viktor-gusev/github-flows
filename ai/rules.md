@@ -1,7 +1,7 @@
 # Usage Rules
 
 - Path: `ai/rules.md`
-- Version: `20260528`
+- Version: `20260610`
 
 ## Structural Rules
 
@@ -34,8 +34,11 @@
 - `promptVariables` are resolved only after one profile was selected.
 - Allowed binding roots are `event.*`, `host.*`, and `workspace.*`.
 - `host.*` may address only same-event provider output.
-- Each binding must resolve to exactly one scalar value.
-- Failed prompt binding resolution prevents execution startup for that event.
+- Structured prompt bindings may use `required` and `optional`; legacy flat maps are interpreted as required-only bindings.
+- Each required binding must resolve to exactly one scalar value.
+- Optional bindings may declare `default`; unresolved optional bindings without defaults remain absent from prompt context.
+- A `null` optional default is materialized as an empty string for prompt text.
+- Failed required prompt binding resolution prevents execution startup for that event.
 
 ## Runtime Rules
 

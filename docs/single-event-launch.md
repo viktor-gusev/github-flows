@@ -58,10 +58,17 @@ If no profile matches, the event is ignored.
     "handler": {
       "promptRef": "prompt.md",
       "promptVariables": {
-        "REPOSITORY": "event.repository.full_name",
-        "ISSUE_NUMBER": "event.issue.number",
-        "ISSUE_TITLE": "event.issue.title",
-        "REVIEW_LANE": "host.reviewLane"
+        "required": {
+          "REPOSITORY": "event.repository.full_name",
+          "ISSUE_NUMBER": "event.issue.number",
+          "ISSUE_TITLE": "event.issue.title"
+        },
+        "optional": {
+          "REVIEW_LANE": {
+            "path": "host.reviewLane",
+            "default": ""
+          }
+        }
       }
     }
   }
@@ -87,7 +94,7 @@ In this layout:
 - the nested fragment narrows applicability to `issues/opened` in `acme/demo`
 - both fragments are merged into one merged profile for that path
 - that merged profile produces one scalar candidate profile because no trigger arrays are used here
-- `promptVariables` may bind directly from `event.*`, `host.*`, or `workspace.*`
+- `promptVariables.required` and `promptVariables.optional` may bind directly from `event.*`, `host.*`, or `workspace.*`
 - if that candidate is the most specific match, one Docker-isolated execution starts
 
 ## Recommended Trigger Style
@@ -108,7 +115,7 @@ Keep prompt bindings declarative:
 - use `host.*` for same-event attributes supplied by the host provider
 - use `workspace.*` for preparation-time execution values such as paths or event identifiers
 
-Every declared binding must resolve to one scalar value for the current event. If a configured `host.*`, `event.*`, or `workspace.*` path does not resolve cleanly, the prompt cannot be materialized and the execution is rejected.
+Every declared required binding must resolve to one scalar value for the current event. Optional bindings may declare a default fallback; unresolved optional bindings without a default remain absent from prompt context. A `null` optional default becomes an empty string in the materialized prompt.
 
 ## Next Step
 

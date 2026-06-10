@@ -79,7 +79,14 @@ Allowed binding roots are:
 - `host.*` for same-event host-provided additional attributes
 - `workspace.*` for execution-preparation values already known to the package
 
-Each configured binding must resolve to exactly one scalar value for the current event. If it does not, prompt materialization fails for that execution attempt.
+The recommended prompt-binding form separates `required` and `optional` bindings:
+
+- required bindings must resolve to exactly one scalar value for the current event;
+- optional bindings may define `{ "path": "...", "default": ... }`;
+- if an optional binding does not resolve and no default is declared, that variable is absent from the prompt context;
+- if an optional binding uses `default: null`, the package materializes an empty string for prompt text.
+
+Legacy flat binding maps remain valid and are interpreted as required-only bindings.
 
 Example:
 
@@ -88,9 +95,16 @@ Example:
   "execution": {
     "handler": {
       "promptVariables": {
-        "ISSUE_TITLE": "event.issue.title",
-        "REVIEW_LANE": "host.reviewLane",
-        "WORKSPACE_PATH": "workspace.workspacePath"
+        "required": {
+          "ISSUE_TITLE": "event.issue.title",
+          "WORKSPACE_PATH": "workspace.workspacePath"
+        },
+        "optional": {
+          "REVIEW_LANE": {
+            "path": "host.reviewLane",
+            "default": null
+          }
+        }
       }
     }
   }

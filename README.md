@@ -4,7 +4,7 @@
 
 It accepts GitHub webhooks on a fixed ingress, builds one admitted-event model, derives package-owned base attributes from it, resolves zero or one effective profile from `workspaceRoot/cfg/`, and starts at most one isolated execution for each admitted event.
 
-After profile selection, prompt variables may be materialized from admitted-event data under `event.*`, host-provided additional attributes under `host.*`, and execution-preparation values under `workspace.*`.
+After profile selection, prompt variables may be materialized from admitted-event data under `event.*`, host-provided additional attributes under `host.*`, and execution-preparation values under `workspace.*`. The package supports legacy flat required-only bindings and the recommended structured form with `required` and `optional` groups.
 
 It is not a standalone application. The host application owns process lifecycle, runtime infrastructure, and startup orchestration.
 
@@ -99,7 +99,7 @@ Those additional attributes may be used in two places only:
 - as plain matching inputs in `trigger`
 - as explicit prompt-variable binding sources under the `host.*` object during prompt materialization
 
-If a configured `host.*` prompt binding does not resolve to exactly one scalar value for the current event, prompt materialization fails and the execution does not start.
+Required prompt bindings must resolve to exactly one scalar value for the current event or prompt materialization fails and execution does not start. Optional prompt bindings may instead define `default`; when that default is `null`, the package materializes it as an empty string in the prompt context.
 
 ## Release Contents
 

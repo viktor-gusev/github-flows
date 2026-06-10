@@ -44,7 +44,9 @@ test("webhook ingress accepts an agent profile with promptRef", { concurrency: f
           args: [],
           promptRef: "default.md",
           promptVariables: {
-            ISSUE_TITLE: "event.issue.title",
+            required: {
+              ISSUE_TITLE: "event.issue.title",
+            },
           },
         },
         runtime: {
@@ -139,8 +141,14 @@ test("webhook ingress materializes prompt variables from host-provided attribute
           args: [],
           promptRef: "default.md",
           promptVariables: {
-            ISSUE_TITLE: "event.issue.title",
-            REVIEW_LANE: "host.reviewLane",
+            required: {
+              ISSUE_TITLE: "event.issue.title",
+            },
+            optional: {
+              REVIEW_LANE: {
+                path: "host.reviewLane",
+              },
+            },
           },
         },
         runtime: {

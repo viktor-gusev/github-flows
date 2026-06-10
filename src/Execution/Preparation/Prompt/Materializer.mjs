@@ -21,6 +21,14 @@ function isScalarValue(value) {
   return ["string", "number", "boolean"].includes(typeof value);
 }
 
+function isScalarOrNullValue(value) {
+  return value === null || isScalarValue(value);
+}
+
+function normalizeOptionalDefaultValue(value) {
+  return value === null ? "" : value;
+}
+
 function resolvePathValue(source, pathExpression) {
   const segments = pathExpression.split(".").filter((segment) => segment.length > 0);
   let current = source;
@@ -47,9 +55,32 @@ function buildWorkspaceValueMap(workspace) {
   };
 }
 
+function parsePromptVariableDefinitions(promptVariables) {
+  const configuredBindings = asRecord(promptVariables);
+  const usesStructured = ("required" in configuredBindings) || ("optional" in configuredBindings);
+
+  if (!usesStructured) {
+    return {
+      required: configuredBindings,
+      optional: {},
+    };
+  }
+
+  const required = asRecord(configuredBindings.required);
+  const optional = asRecord(configuredBindings.optional);
+
+  const legacyKeys = Object.keys(configuredBindings)
+    .filter((key) => (key !== "required") && (key !== "optional"));
+  if (legacyKeys.length > 0) {
+    throw new Error(`Legacy and structured prompt variable forms must not be mixed: ${legacyKeys[0]}`);
+  }
+
+  return { required, optional };
+}
+
 function resolvePromptBindings({ event, hostAttributes, selectedProfile, workspace }) {
   const handler = asRecord(asRecord(selectedProfile.execution).handler);
-  const configuredBindings = asRecord(handler.promptVariables);
+  const configuredBindings = parsePromptVariableDefinitions(handler.promptVariables);
   const sources = {
     event: asRecord(event),
     host: asRecord(hostAttributes),
@@ -57,7 +88,7 @@ function resolvePromptBindings({ event, hostAttributes, selectedProfile, workspa
   };
   const resolved = {};
 
-  for (const [variableName, sourcePath] of Object.entries(configuredBindings)) {
+  for (const [variableName, sourcePath] of Object.entries(configuredBindings.required)) {
     if ((typeof variableName !== "string") || variableName.length === 0) {
       throw new Error("Prompt variable name must be a non-empty string.");
     }
@@ -73,6 +104,32 @@ function resolvePromptBindings({ event, hostAttributes, selectedProfile, workspa
       throw new Error(`Unable to resolve prompt binding to exactly one value: ${variableName} <- ${sourcePath}`);
     }
     resolved[variableName] = value;
+  }
+
+  for (const [variableName, entry] of Object.entries(configuredBindings.optional)) {
+    if ((typeof variableName !== "string") || variableName.length === 0) {
+      throw new Error("Prompt variable name must be a non-empty string.");
+    }
+    const definition = asRecord(entry);
+    const sourcePath = definition.path;
+    if ((typeof sourcePath !== "string") || sourcePath.length === 0) {
+      throw new Error(`Optional prompt binding path must be a non-empty string: ${variableName}`);
+    }
+    const [root] = sourcePath.split(".", 1);
+    if ((root !== "event") && (root !== "host") && (root !== "workspace")) {
+      throw new Error(`Unsupported prompt binding source path: ${sourcePath}`);
+    }
+    const value = resolvePathValue(sources, sourcePath);
+    if (isScalarValue(value)) {
+      resolved[variableName] = value;
+      continue;
+    }
+    if ("default" in definition) {
+      if (!isScalarOrNullValue(definition.default)) {
+        throw new Error(`Optional prompt binding default must be scalar: ${variableName}`);
+      }
+      resolved[variableName] = normalizeOptionalDefaultValue(definition.default);
+    }
   }
 
   return /** @type {Record<string, string | number | boolean>} */ (resolved);

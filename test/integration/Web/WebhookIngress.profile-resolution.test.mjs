@@ -91,8 +91,10 @@ test("webhook ingress preserves scalar trigger behavior and persists key executi
             args: [],
             promptRef: "default.md",
             promptVariables: {
-              ISSUE_TITLE: "event.issue.title",
-              ACTOR: "host.actor",
+              required: {
+                ISSUE_TITLE: "event.issue.title",
+                ACTOR: "host.actor",
+              },
             },
           },
           runtime: {
@@ -185,7 +187,9 @@ test("webhook ingress expands actorLogin trigger arrays through the real executi
             args: [],
             promptRef: "default.md",
             promptVariables: {
-              ACTOR: "event.sender.login",
+              required: {
+                ACTOR: "event.sender.login",
+              },
             },
           },
           runtime: {
@@ -254,8 +258,14 @@ test("webhook ingress matches host-provided trigger arrays and reuses the matche
             args: [],
             promptRef: "default.md",
             promptVariables: {
-              ISSUE_TITLE: "event.issue.title",
-              REVIEW_LANE: "host.reviewLane",
+              required: {
+                ISSUE_TITLE: "event.issue.title",
+              },
+              optional: {
+                REVIEW_LANE: {
+                  path: "host.reviewLane",
+                },
+              },
             },
           },
           runtime: {
@@ -352,7 +362,9 @@ test("webhook ingress expands multiple trigger arrays after hierarchical merge a
         execution: {
           handler: {
             promptVariables: {
-              ACTOR: "event.sender.login",
+              required: {
+                ACTOR: "event.sender.login",
+              },
             },
           },
           runtime: {
@@ -371,7 +383,11 @@ test("webhook ingress expands multiple trigger arrays after hierarchical merge a
           handler: {
             promptRef: "default.md",
             promptVariables: {
-              REVIEW_LANE: "host.reviewLane",
+              optional: {
+                REVIEW_LANE: {
+                  path: "host.reviewLane",
+                },
+              },
             },
           },
           runtime: {

@@ -82,7 +82,9 @@ test("prompt materializer resolves prompt variables from event fields and persis
       loggingContext: createLoggingContext(),
       selectedProfile: createSelectedProfile({
         promptVariables: {
-          PR_TITLE: "event.pull_request.title",
+          required: {
+            PR_TITLE: "event.pull_request.title",
+          },
         },
       }),
       workspace: createWorkspace(workspaceRoot),
@@ -122,7 +124,9 @@ test("prompt materializer resolves prompt variables from preparation-time worksp
       loggingContext: createLoggingContext(),
       selectedProfile: createSelectedProfile({
         promptVariables: {
-          WS_PATH: "workspace.workspacePath",
+          required: {
+            WS_PATH: "workspace.workspacePath",
+          },
         },
       }),
       workspace: createWorkspace(workspaceRoot),
@@ -160,8 +164,10 @@ test("prompt materializer resolves prompt variables from host-provided attribute
       loggingContext: createLoggingContext(),
       selectedProfile: createSelectedProfile({
         promptVariables: {
-          ACTOR: "host.actor",
-          REVIEW_LANE: "host.reviewLane",
+          required: {
+            ACTOR: "host.actor",
+            REVIEW_LANE: "host.reviewLane",
+          },
         },
       }),
       workspace: createWorkspace(workspaceRoot),
@@ -232,7 +238,9 @@ test("prompt materializer fails when a declared event binding cannot be resolved
         loggingContext: createLoggingContext(),
         selectedProfile: createSelectedProfile({
           promptVariables: {
-            PR_TITLE: "event.pull_request.title",
+            required: {
+              PR_TITLE: "event.pull_request.title",
+            },
           },
         }),
         workspace: createWorkspace(workspaceRoot),
@@ -266,7 +274,9 @@ test("prompt materializer fails when a declared binding resolves to a non-scalar
         loggingContext: createLoggingContext(),
         selectedProfile: createSelectedProfile({
           promptVariables: {
-            PR: "event.pull_request",
+            required: {
+              PR: "event.pull_request",
+            },
           },
         }),
         workspace: createWorkspace(workspaceRoot),
@@ -278,7 +288,126 @@ test("prompt materializer fails when a declared binding resolves to a non-scalar
   }
 });
 
-test("prompt materializer fails when a declared host binding cannot be resolved", async () => {
+test("prompt materializer omits unresolved optional bindings without defaults", async () => {
+  const workspaceRoot = await fs.mkdtemp(path.join(os.tmpdir(), "github-flows-prompt-"));
+  const templateDir = path.join(workspaceRoot, "cfg", "issues");
+  await fs.mkdir(templateDir, { recursive: true });
+  await fs.writeFile(path.join(templateDir, "default.md"), "Actor {{ACTOR}}.", "utf8");
+
+  const materializer = new Github_Flows_Execution_Preparation_Prompt_Materializer({
+    eventLog: { async logEventProcessing() {} },
+    fsPromises: fs,
+    pathModule: path,
+    runtime: { workspaceRoot },
+  });
+
+  try {
+    const result = await materializer.materialize({
+      event: {},
+      hostAttributes: {},
+      loggingContext: createLoggingContext(),
+      selectedProfile: createSelectedProfile({
+        promptVariables: {
+          required: {
+            ACTOR: "workspace.owner",
+          },
+          optional: {
+            REVIEW_LANE: {
+              path: "host.reviewLane",
+            },
+          },
+        },
+      }),
+      workspace: createWorkspace(workspaceRoot),
+    });
+    assert.equal(result.prompt, "Actor octocat.");
+    assert.deepEqual(result.promptBindings, {
+      ACTOR: "octocat",
+    });
+  } finally {
+    await fs.rm(workspaceRoot, { recursive: true, force: true });
+  }
+});
+
+test("prompt materializer uses optional defaults when host bindings are absent", async () => {
+  const workspaceRoot = await fs.mkdtemp(path.join(os.tmpdir(), "github-flows-prompt-"));
+  const templateDir = path.join(workspaceRoot, "cfg", "issues");
+  await fs.mkdir(templateDir, { recursive: true });
+  await fs.writeFile(path.join(templateDir, "default.md"), "Lane {{REVIEW_LANE}}.", "utf8");
+
+  const materializer = new Github_Flows_Execution_Preparation_Prompt_Materializer({
+    eventLog: { async logEventProcessing() {} },
+    fsPromises: fs,
+    pathModule: path,
+    runtime: { workspaceRoot },
+  });
+
+  try {
+    const result = await materializer.materialize({
+      event: {},
+      hostAttributes: {},
+      loggingContext: createLoggingContext(),
+      selectedProfile: createSelectedProfile({
+        promptVariables: {
+          optional: {
+            REVIEW_LANE: {
+              path: "host.reviewLane",
+              default: "default",
+            },
+          },
+        },
+      }),
+      workspace: createWorkspace(workspaceRoot),
+    });
+    assert.equal(result.prompt, "Lane default.");
+    assert.deepEqual(result.promptBindings, {
+      REVIEW_LANE: "default",
+    });
+  } finally {
+    await fs.rm(workspaceRoot, { recursive: true, force: true });
+  }
+});
+
+test("prompt materializer converts null optional defaults to empty strings for prompt text", async () => {
+  const workspaceRoot = await fs.mkdtemp(path.join(os.tmpdir(), "github-flows-prompt-"));
+  const templateDir = path.join(workspaceRoot, "cfg", "issues");
+  await fs.mkdir(templateDir, { recursive: true });
+  await fs.writeFile(path.join(templateDir, "default.md"), "Lane '{{REVIEW_LANE}}'.", "utf8");
+
+  const materializer = new Github_Flows_Execution_Preparation_Prompt_Materializer({
+    eventLog: { async logEventProcessing() {} },
+    fsPromises: fs,
+    pathModule: path,
+    runtime: { workspaceRoot },
+  });
+
+  try {
+    const result = await materializer.materialize({
+      event: {},
+      hostAttributes: {},
+      loggingContext: createLoggingContext(),
+      selectedProfile: createSelectedProfile({
+        promptVariables: {
+          optional: {
+            REVIEW_LANE: {
+              path: "host.reviewLane",
+              default: null,
+            },
+          },
+        },
+      }),
+      workspace: createWorkspace(workspaceRoot),
+    });
+    assert.equal(result.prompt, "Lane ''.");
+    assert.deepEqual(result.promptBindings, {
+      REVIEW_LANE: "",
+    });
+  } finally {
+    await fs.rm(workspaceRoot, { recursive: true, force: true });
+  }
+});
+
+test("prompt materializer fails when a declared required host binding cannot be resolved", async () => {
   const workspaceRoot = await fs.mkdtemp(path.join(os.tmpdir(), "github-flows-prompt-"));
   const templateDir = path.join(workspaceRoot, "cfg", "issues");
   await fs.mkdir(templateDir, { recursive: true });
@@ -299,12 +428,88 @@ test("prompt materializer fails when a declared host binding cannot be resolved"
         loggingContext: createLoggingContext(),
         selectedProfile: createSelectedProfile({
           promptVariables: {
-            REVIEW_LANE: "host.reviewLane",
+            required: {
+              REVIEW_LANE: "host.reviewLane",
+            },
           },
         }),
         workspace: createWorkspace(workspaceRoot),
       }),
       /Unable to resolve prompt binding to exactly one value/,
+    );
+  } finally {
+    await fs.rm(workspaceRoot, { recursive: true, force: true });
+  }
+});
+
+test("prompt materializer preserves legacy flat-map promptVariables as required bindings", async () => {
+  const workspaceRoot = await fs.mkdtemp(path.join(os.tmpdir(), "github-flows-prompt-"));
+  const templateDir = path.join(workspaceRoot, "cfg", "issues");
+  await fs.mkdir(templateDir, { recursive: true });
+  await fs.writeFile(path.join(templateDir, "default.md"), "Issue {{ISSUE_TITLE}}.", "utf8");
+
+  const materializer = new Github_Flows_Execution_Preparation_Prompt_Materializer({
+    eventLog: { async logEventProcessing() {} },
+    fsPromises: fs,
+    pathModule: path,
+    runtime: { workspaceRoot },
+  });
+
+  try {
+    const result = await materializer.materialize({
+      event: {
+        issue: { title: "Legacy issue" },
+      },
+      loggingContext: createLoggingContext(),
+      selectedProfile: createSelectedProfile({
+        promptVariables: {
+          ISSUE_TITLE: "event.issue.title",
+        },
+      }),
+      workspace: createWorkspace(workspaceRoot),
+    });
+    assert.equal(result.prompt, "Issue Legacy issue.");
+    assert.deepEqual(result.promptBindings, {
+      ISSUE_TITLE: "Legacy issue",
+    });
+  } finally {
+    await fs.rm(workspaceRoot, { recursive: true, force: true });
+  }
+});
+
+test("prompt materializer rejects mixed legacy and structured promptVariables", async () => {
+  const workspaceRoot = await fs.mkdtemp(path.join(os.tmpdir(), "github-flows-prompt-"));
+  const templateDir = path.join(workspaceRoot, "cfg", "issues");
+  await fs.mkdir(templateDir, { recursive: true });
+  await fs.writeFile(path.join(templateDir, "default.md"), "Issue {{ISSUE_TITLE}}.", "utf8");
+
+  const materializer = new Github_Flows_Execution_Preparation_Prompt_Materializer({
+    eventLog: { async logEventProcessing() {} },
+    fsPromises: fs,
+    pathModule: path,
+    runtime: { workspaceRoot },
+  });
+
+  try {
+    await assert.rejects(
+      materializer.materialize({
+        event: {
+          issue: { title: "Mixed issue" },
+        },
+        loggingContext: createLoggingContext(),
+        selectedProfile: createSelectedProfile({
+          promptVariables: {
+            ISSUE_TITLE: "event.issue.title",
+            optional: {
+              REVIEW_LANE: {
+                path: "host.reviewLane",
+              },
+            },
+          },
+        }),
+        workspace: createWorkspace(workspaceRoot),
+      }),
+      /Legacy and structured prompt variable forms must not be mixed/,
     );
   } finally {
     await fs.rm(workspaceRoot, { recursive: true, force: true });

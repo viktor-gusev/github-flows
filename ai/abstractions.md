@@ -1,7 +1,7 @@
 # Core Abstractions
 
 - Path: `ai/abstractions.md`
-- Version: `20260528`
+- Version: `20260610`
 
 ## Web Server
 
@@ -63,4 +63,4 @@ The host may register at most one provider for the application lifetime.
 
 It admits GitHub webhook requests, builds one admitted-event model, resolves the event attribute set, resolves merged profiles and expanded scalar candidates, and starts execution only when a profile is selected.
 
-If the selected profile declares prompt variables, the package materializes them after profile selection. `host.*` bindings read from the same-event provider output preserved during attribute resolution.
+If the selected profile declares prompt variables, the package materializes them after profile selection. `host.*` bindings read from the same-event provider output preserved during attribute resolution. Structured prompt bindings may separate `required` and `optional`; legacy flat maps remain compatibility input and are interpreted as required-only bindings.

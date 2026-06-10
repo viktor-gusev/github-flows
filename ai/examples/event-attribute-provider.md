@@ -1,7 +1,7 @@
 # Event Attribute Provider Example
 
 - Path: `ai/examples/event-attribute-provider.md`
-- Version: `20260528`
+- Version: `20260610`
 
 This example shows how a host application can register one optional `Github_Flows_Event_Attribute_Provider` during startup.
 
@@ -90,9 +90,16 @@ Example profile fragment using the same-event provider output for prompt materia
       "type": "agent",
       "promptRef": "prompt.md",
       "promptVariables": {
-        "ISSUE_AUTHOR": "host.issueAuthor",
-        "REVIEW_LANE": "host.reviewLane",
-        "ISSUE_TITLE": "event.issue.title"
+        "required": {
+          "ISSUE_AUTHOR": "host.issueAuthor",
+          "ISSUE_TITLE": "event.issue.title"
+        },
+        "optional": {
+          "REVIEW_LANE": {
+            "path": "host.reviewLane",
+            "default": ""
+          }
+        }
       }
     }
   }
@@ -109,5 +116,6 @@ Notes:
 - trigger arrays remain configuration-time sugar, are expanded into scalar candidates after profile merge and before matching, and do not introduce runtime membership checks;
 - empty trigger arrays contribute no candidate profiles;
 - use `host.*` prompt bindings only for values returned by the same-event provider;
+- prefer structured `promptVariables.required` / `promptVariables.optional` in new profiles;
 - let the package handle profile matching and execution permission;
 - skip the provider entirely if the host does not need extra event attributes.

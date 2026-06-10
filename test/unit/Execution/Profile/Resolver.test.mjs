@@ -31,7 +31,7 @@ test("profile resolver merges fragment chain from root to leaf candidate", async
           command: ["node", "root.mjs"],
           args: [],
           promptRef: "root.md",
-          promptVariables: { REPO_NAME: "event.repository.name" },
+          promptVariables: { required: { REPO_NAME: "event.repository.name" } },
         },
         runtime: { image: "root-image", setupScript: "test -d repo", env: { ROOT: "1" }, timeoutSec: 60 },
       },
@@ -44,7 +44,9 @@ test("profile resolver merges fragment chain from root to leaf candidate", async
           args: ["--leaf"],
           promptRef: "leaf.md",
           promptVariables: {
-            PR_ACTION: "event.action",
+            required: {
+              PR_ACTION: "event.action",
+            },
           },
         },
         runtime: { image: "leaf-image", setupScript: "test -d repo", env: { LEAF: "1" } },
@@ -80,8 +82,10 @@ test("profile resolver merges fragment chain from root to leaf candidate", async
         args: ["--leaf"],
         promptRef: "leaf.md",
         promptVariables: {
-          REPO_NAME: "event.repository.name",
-          PR_ACTION: "event.action",
+          required: {
+            REPO_NAME: "event.repository.name",
+            PR_ACTION: "event.action",
+          },
         },
       },
       runtime: {
@@ -233,7 +237,9 @@ test("profile resolver does not use prompt variables for matching or tie-breakin
           args: [],
           promptRef: "a.md",
           promptVariables: {
-            A_TITLE: "event.issue.title",
+            required: {
+              A_TITLE: "event.issue.title",
+            },
           },
         },
         runtime: { image: "a-image", setupScript: "true", env: {}, timeoutSec: 30 },
@@ -248,8 +254,10 @@ test("profile resolver does not use prompt variables for matching or tie-breakin
           args: [],
           promptRef: "b.md",
           promptVariables: {
-            B_TITLE: "event.pull_request.title",
-            WORKSPACE: "workspace.workspacePath",
+            required: {
+              B_TITLE: "event.pull_request.title",
+              WORKSPACE: "workspace.workspacePath",
+            },
           },
         },
         runtime: { image: "b-image", setupScript: "true", env: {}, timeoutSec: 30 },

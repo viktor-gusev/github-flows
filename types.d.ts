@@ -108,13 +108,22 @@ declare global {
   type Github_Flows_Config_Runtime__Wrapper = import("./src/Config/Runtime.mjs").default;
   type Github_Flows_Config_Runtime__Factory = import("./src/Config/Runtime.mjs").Factory;
   type Github_Flows_Execution_Handler_Type = "agent" | "shell";
+  type Github_Flows_Execution_Prompt_Variable_Optional = {
+    path: string,
+    default?: boolean | number | string | null,
+  };
+  type Github_Flows_Execution_Prompt_Variable_Map = Record<string, string>;
+  type Github_Flows_Execution_Prompt_Variable_Structured = {
+    required?: Github_Flows_Execution_Prompt_Variable_Map,
+    optional?: Record<string, Github_Flows_Execution_Prompt_Variable_Optional>,
+  };
   type Github_Flows_Execution_Profile__Execution = {
     handler: {
       type: Github_Flows_Execution_Handler_Type,
       command: string[],
       args: string[],
       promptRef?: string,
-      promptVariables?: Record<string, string>,
+      promptVariables?: Github_Flows_Execution_Prompt_Variable_Map | Github_Flows_Execution_Prompt_Variable_Structured,
     },
     runtime: {
       dockerArgs?: string[],
