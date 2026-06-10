@@ -2,6 +2,22 @@
 
 All notable changes to `@teqfw/github-flows` will be documented in this file.
 
+## 0.6.0 - 2026-06-10 - Structured prompt variables and release alignment
+
+Release focused on structured prompt-variable declarations, compatibility-preserving prompt materialization behavior, and documentation alignment across the package surfaces.
+
+### Added
+
+- support for structured `promptVariables` with `required` and `optional` groups, while preserving legacy flat required-only maps as compatibility input;
+- optional prompt-binding defaults, including normalization of `null` defaults into empty strings for prompt text;
+- unit coverage for structured prompt bindings, optional omission, optional defaults, `null` default normalization, and mixed-format rejection.
+
+### Changed
+
+- published `README.md`, `docs/`, and `ai/` documentation now describe the structured prompt-variable format and its compatibility behavior consistently;
+- runtime prompt materialization now distinguishes required prompt bindings from optional prompt bindings instead of treating every declared binding as mandatory;
+- package version metadata was updated to `0.6.0`.
+
 ## 0.5.0 - 2026-05-28 - Trigger-array profile resolution coverage
 
 Release focused on end-to-end verification of trigger-array profile resolution and effective-profile selection through the real webhook flow.
