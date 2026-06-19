@@ -1,124 +1,116 @@
 # Root Level
 
 - Path: `AGENTS.md`
-- Template Version: `20260420`
+- Template Version: `20260605`
+- Changed: `20260605`
 
 ## Purpose
 
-This root file defines the invariant rules of ADSM (Agent-Driven Software Management), establishes the roles of the Human and the Agent, specifies the resolution model of the cognitive context, and determines global operational constraints; it is read by the agent before any project-level instructions.
+This file defines the root invariants of ADSM (Agent-Driven Software Management) for the entire project.
+
+This file is the first instruction source for every Agent operating within the repository.
 
 ## Level Boundary
 
-This level defines:
+Defines:
 
-- ADSM invariants and principles
-- interaction model between Human and Agent
-- roles and responsibilities
-- global execution constraints
-- cognitive context resolution model
-- rules of consistency between context and product
-- repository separation rules
-- AGENTS.md hierarchy and resolution model
+- ADSM methodological invariants and Human-Agent responsibility boundaries.
+- Cognitive-context governance, repository topology, and context-product consistency rules.
+- `AGENTS.md` hierarchy resolution and root-level file protection rules.
 
-This level does NOT define:
+Does NOT define:
 
-- project-specific logic
-- domain-specific documentation
-- implementation details of the product
-- structure or rules inside `ctx/`
-- task-specific instructions (they come from external prompts)
+- Product-specific meaning, requirements, or domain knowledge.
+- Implementation-level structure such as source code, runtime details, or filesystem layout.
+- Task-specific instructions, workflows, or local operational procedures.
 
-## ADSM Principles
+Each `Level Boundary` section in `AGENTS.md` documentation should expose exactly three primary `Defines` items and exactly three primary `Does NOT define` items.
 
-### Project Spaces
+Such information belongs to the cognitive context.
 
-A project consists of two interconnected spaces: the **Cognitive Context** (located in `./ctx/`) and the **Software Product** (all files outside `ctx/`); the context governs modifications of the product, and the product reflects application of the context.
+## ADSM Project Model
 
-The cognitive context may exist as a standalone repository but MUST be mounted under `./ctx/` for execution. The location `./ctx/` is the canonical execution location of the cognitive context.
+An ADSM project consists of two interconnected spaces:
 
-### Published Product Documentation
+- the **Cognitive Context** located in `./ctx/`
+- the **Software Product** located outside `./ctx/`
 
-The software product MAY include published documentation distributed with the product.
+The cognitive context is the long-term textual memory of the project.
 
-When present:
+The cognitive context is the primary communication medium between Humans and Agents working on the project.
 
-- `./ai/` denotes agent-facing product documentation.
-- `./docs/` denotes human-facing product documentation.
+The cognitive context is the authoritative knowledge source used by Agents when modifying the project.
 
-Such documentation belongs to the software product, not to the cognitive context, and MUST NOT replace or redefine `./ctx/`.
+The software product is the implementation that must be kept consistent with the cognitive context.
 
-### Interaction Model
+## Human and Agent Roles
 
-The Human defines goals, maintains the context, and approves changes; the Agent interprets the context and modifies the product strictly within its boundaries; each iteration terminates with a report, whose structure and format are defined within the cognitive context.
+The Human defines goals, authorizes work, evaluates outcomes, and evolves the project.
 
-## Roles
+The Agent interprets the cognitive context, performs assigned tasks, modifies the project within task boundaries, and maintains consistency between the cognitive context and the software product.
 
-**Human:** defines goals, maintains context, approves modifications, evolves structure.  
-**Agent:** executes tasks within context boundaries, modifies the product, maintains internal consistency.
+The Agent operates through text and must treat project documentation as operational memory, not as secondary commentary.
 
-## Context Resolution
+## Cognitive Context
 
-Agent behavior is determined exclusively by documents of the cognitive context (located in `./ctx/`).
+The canonical execution location of the cognitive context is `./ctx/`.
 
-The entry point of the cognitive context is:
+Project-specific knowledge, requirements, architecture, environment descriptions, and implementation guidance are defined within the cognitive context.
 
-```
-ctx/AGENTS.md
-```
+The Agent must consult `./ctx/AGENTS.md` for project-specific instructions when `./ctx/` exists.
 
-The external prompt defines the task but MUST be interpreted strictly within the cognitive context.
+The Agent must consult `./ctx/docs/filesystem.md` for the project filesystem structure and documentation layout when that file exists.
 
-If a contradiction occurs between the prompt and the cognitive context, the cognitive context takes precedence.
+Documentation distributed with the software product may exist outside `./ctx/`, but it does not replace, redefine, or supersede the cognitive context.
 
-The agent MUST interpret the prompt through the context before performing any action.
+## Bootstrap and Repository Topology
 
-If the cognitive context (`./ctx/`) is missing, empty, or inaccessible, the agent MUST NOT perform any actions and MUST terminate with an execution error. The agent MAY report this error using any format permitted by the current interaction channel.
+An ADSM project may use one repository or two repositories.
 
-## Context vs Code Consistency
+In a one-repository topology, the software product and the cognitive context are versioned together.
 
-If a mismatch between the cognitive context (`./ctx/`) and the software product is detected, the context MUST be treated as the source of truth.
+In a two-repository topology, the software product and the cognitive context are independent version-controlled repositories, and the cognitive context repository is mounted under `./ctx/`.
 
-The agent MUST modify the product to match the context.
+The Agent must detect whether `./ctx/` is part of the current repository or an independent repository.
 
-Modification of the context is allowed only if explicitly required by the task defined in the prompt.
+The Agent must preserve repository boundaries.
 
-## Repository Boundaries
+The Agent must not mix changes between independent repositories.
 
-The cognitive context (`./ctx/`) MAY be mounted from a separate repository.
+The Agent must not remove, replace, relocate, or unmount `./ctx/`.
 
-In such cases, the context and the product MUST be treated as independent version-controlled spaces.
+If `./ctx/` does not exist, the Agent may perform bootstrap operations required to create the initial cognitive context structure.
 
-### Rules
+After bootstrap is complete, `./ctx/AGENTS.md` becomes the entry point for project-specific instructions.
 
-- Changes in `./ctx/` MUST be committed and pushed to the context repository.
-- Changes outside `./ctx/` MUST be committed and pushed to the product repository.
-- The agent MUST NOT mix changes between these repositories.
-- The agent MUST NOT remove, replace, or unmount the `./ctx/` directory.
+## Context and Product Consistency
 
-Violation of these rules constitutes an execution error.
+The cognitive context is the source of truth for the project.
+
+If the cognitive context and the software product diverge, the Agent must treat the cognitive context as authoritative.
+
+The Agent must maintain consistency between the cognitive context and the software product.
+
+The Agent may modify the cognitive context when required by the assigned task and when the modification remains consistent with higher-level context constraints.
+
+The Agent may modify the software product when required by the assigned task and when the modification remains consistent with the cognitive context.
 
 ## AGENTS.md Hierarchy
 
-If additional `AGENTS.md` files exist in subdirectories, they define local constraints within their directory level.
+Additional `AGENTS.md` files may exist in subdirectories.
 
-When executing a task in directory `X`, the working context of the agent is the aggregate of all `AGENTS.md` files along the path from the project root to `X`.
+The effective working context of the Agent is the aggregate of all `AGENTS.md` files located along the path from the repository root to the target directory.
 
 Rules:
 
 - deeper levels override higher levels within their scope
-- root-level invariants are mandatory and cannot be overridden
-- all levels must form a coherent and non-contradictory system
+- root-level invariants cannot be overridden
+- all levels must remain mutually consistent
 
-## Compatibility
+## Root File Protection
 
-The root `AGENTS.md` defines methodological invariants and is reused across projects; project-specific rules are defined exclusively within the cognitive context (located in `./ctx/`).
+This file defines ADSM template-level invariants.
 
-## Change Policy
+The Agent must not modify, replace, delete, relocate, or reinterpret this file unless explicitly instructed by the Human.
 
-This file is a template-level definition and is not subject to modification within the project.
-
-- The agent must not modify, replace, delete, or relocate this file
-- The agent must not introduce changes that effectively alter its content or presence in the repository
-- Updates to this file are performed only at the template level and propagated explicitly
-
-Violation of these rules constitutes an execution error.
+Violation of this rule constitutes an execution error.
