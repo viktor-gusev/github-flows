@@ -242,3 +242,51 @@ test("workspace preparer rejects reuse of an existing execution workspace path",
     await fs.rm(workspaceRoot, { recursive: true, force: true });
   }
 });
+
+test("workspace preparer removes partially created workspace when clone fails", async () => {
+  const workspaceRoot = await fs.mkdtemp(path.join(os.tmpdir(), "github-flows-ws-"));
+  const workspacePath = path.resolve(workspaceRoot, "ws", "octocat", "demo", "push", "evt-1");
+  const preparer = new Github_Flows_Execution_Workspace_Preparer({
+    childProcess: {
+      execFile(command, _args, _options, callback) {
+        if (typeof _options === "function") {
+          callback = _options;
+        }
+        if (command === "git") {
+          callback(new Error("clone failed"), "", "");
+          return;
+        }
+        callback(null, "", "");
+      },
+    },
+    eventLog: {},
+    fsPromises: fs,
+    pathModule: path,
+    repoCacheManager: {
+      async syncByGithubEvent() {
+        return { path: path.resolve(workspaceRoot, "cache", "repo", "octocat", "demo") };
+      },
+    },
+    runtime: { workspaceRoot },
+  });
+
+  try {
+    await assert.rejects(
+      preparer.prepareByGithubEvent({
+        event: {
+          eventId: "evt-1",
+          eventType: "push",
+          repository: {
+            name: "demo",
+            owner: { login: "octocat" },
+          },
+        },
+      }),
+      /clone failed/,
+    );
+
+    await assert.rejects(fs.stat(workspacePath), /ENOENT/);
+  } finally {
+    await fs.rm(workspaceRoot, { recursive: true, force: true });
+  }
+});

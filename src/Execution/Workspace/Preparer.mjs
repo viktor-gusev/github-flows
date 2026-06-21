@@ -99,6 +99,11 @@ async function assertWorkspaceIsAbsent(fsPromises, target) {
   throw new Error(`Execution workspace already exists: ${target}`);
 }
 
+/* Removes an execution workspace directory recursively. */
+async function removeWorkspace(fsPromises, target) {
+  await fsPromises.rm(target, { recursive: true, force: true });
+}
+
 /**
  * Isolated execution workspace preparer.
  */
@@ -141,6 +146,14 @@ export default class Github_Flows_Execution_Workspace_Preparer {
     repoCacheManager,
     runtime,
   }) {
+    /**
+     * @param {{ workspacePath: string }} params
+     * @returns {Promise<void>}
+     */
+    this.cleanup = async function ({ workspacePath }) {
+      await removeWorkspace(fsPromises, workspacePath);
+    };
+
     /**
      * @param {{ event: unknown, loggingContext?: Github_Flows_Event_Logging_Context__Data }} params
      * @returns {Promise<{
@@ -188,50 +201,55 @@ export default class Github_Flows_Execution_Workspace_Preparer {
       });
       const cacheEntry = await repoCacheManager.syncByGithubEvent({ event });
 
-      await assertWorkspaceIsAbsent(fsPromises, workspacePath);
-      await fsPromises.mkdir(workspacePath, { recursive: true });
-      logger?.logComponentAction?.({
-        component: "Github_Flows_Execution_Workspace_Preparer",
-        action: "workspace-create",
-        details: { eventId, eventType, owner: identity.owner, repo: identity.repo, workspacePath },
-        message: `Created execution workspace for ${identity.owner}/${identity.repo}.`,
-      });
-      await eventLog?.logEventProcessing?.({
-        action: "workspace-create",
-        component: "Github_Flows_Execution_Workspace_Preparer",
-        details: { eventId, eventType, owner: identity.owner, repo: identity.repo, workspacePath },
-        loggingContext,
-        message: `Created execution workspace for ${identity.owner}/${identity.repo}.`,
-        stage: "execution-preparation",
-      });
+      try {
+        await assertWorkspaceIsAbsent(fsPromises, workspacePath);
+        await fsPromises.mkdir(workspacePath, { recursive: true });
+        logger?.logComponentAction?.({
+          component: "Github_Flows_Execution_Workspace_Preparer",
+          action: "workspace-create",
+          details: { eventId, eventType, owner: identity.owner, repo: identity.repo, workspacePath },
+          message: `Created execution workspace for ${identity.owner}/${identity.repo}.`,
+        });
+        await eventLog?.logEventProcessing?.({
+          action: "workspace-create",
+          component: "Github_Flows_Execution_Workspace_Preparer",
+          details: { eventId, eventType, owner: identity.owner, repo: identity.repo, workspacePath },
+          loggingContext,
+          message: `Created execution workspace for ${identity.owner}/${identity.repo}.`,
+          stage: "execution-preparation",
+        });
 
-      await runCommand(childProcess, "git", ["clone", "--no-hardlinks", cacheEntry.path, repoPath], { env: gitAuthEnv });
-      logger?.logComponentAction?.({
-        component: "Github_Flows_Execution_Workspace_Preparer",
-        action: "workspace-repo-clone",
-        details: {
-          owner: identity.owner,
-          repo: identity.repo,
-          repositoryCachePath: cacheEntry.path,
-          repoPath,
-          workspacePath,
-        },
-        message: `Cloned repository into execution workspace for ${identity.owner}/${identity.repo}.`,
-      });
-      await eventLog?.logEventProcessing?.({
-        action: "workspace-repo-clone",
-        component: "Github_Flows_Execution_Workspace_Preparer",
-        details: {
-          owner: identity.owner,
-          repo: identity.repo,
-          repositoryCachePath: cacheEntry.path,
-          repoPath,
-          workspacePath,
-        },
-        loggingContext,
-        message: `Cloned repository into execution workspace for ${identity.owner}/${identity.repo}.`,
-        stage: "execution-preparation",
-      });
+        await runCommand(childProcess, "git", ["clone", "--no-hardlinks", cacheEntry.path, repoPath], { env: gitAuthEnv });
+        logger?.logComponentAction?.({
+          component: "Github_Flows_Execution_Workspace_Preparer",
+          action: "workspace-repo-clone",
+          details: {
+            owner: identity.owner,
+            repo: identity.repo,
+            repositoryCachePath: cacheEntry.path,
+            repoPath,
+            workspacePath,
+          },
+          message: `Cloned repository into execution workspace for ${identity.owner}/${identity.repo}.`,
+        });
+        await eventLog?.logEventProcessing?.({
+          action: "workspace-repo-clone",
+          component: "Github_Flows_Execution_Workspace_Preparer",
+          details: {
+            owner: identity.owner,
+            repo: identity.repo,
+            repositoryCachePath: cacheEntry.path,
+            repoPath,
+            workspacePath,
+          },
+          loggingContext,
+          message: `Cloned repository into execution workspace for ${identity.owner}/${identity.repo}.`,
+          stage: "execution-preparation",
+        });
+      } catch (error) {
+        await removeWorkspace(fsPromises, workspacePath);
+        throw error;
+      }
 
       try {
         const { stdout } = await runCommand(childProcess, "git", [

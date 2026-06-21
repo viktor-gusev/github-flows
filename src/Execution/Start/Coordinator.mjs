@@ -189,6 +189,37 @@ export default class Github_Flows_Execution_Start_Coordinator {
       });
     };
 
+    const cleanupWorkspace = async function ({ loggingContext, profileId, workspacePath }) {
+      if ((typeof workspacePath !== "string") || workspacePath.length === 0) return;
+      if (typeof executionWorkspacePreparer.cleanup !== "function") return;
+
+      await logStep({
+        action: "workspace-cleanup-started",
+        details: {
+          eventId: loggingContext.eventId,
+          profileId,
+          repository: `${loggingContext.owner}/${loggingContext.repo}`,
+          workspacePath,
+        },
+        loggingContext,
+        message: `Cleaning execution workspace for profile ${profileId}.`,
+        stage: "execution-cleanup",
+      });
+      await executionWorkspacePreparer.cleanup({ workspacePath });
+      await logStep({
+        action: "workspace-cleanup-completed",
+        details: {
+          eventId: loggingContext.eventId,
+          profileId,
+          repository: `${loggingContext.owner}/${loggingContext.repo}`,
+          workspacePath,
+        },
+        loggingContext,
+        message: `Cleaned execution workspace for profile ${profileId}.`,
+        stage: "execution-cleanup",
+      });
+    };
+
     /**
      * @param {{
      *   event: unknown,
@@ -256,97 +287,106 @@ export default class Github_Flows_Execution_Start_Coordinator {
         throw error;
       }
 
-      const preparedPrompt = await executionPromptMaterializer.materialize({
-        event,
-        hostAttributes,
-        loggingContext,
-        selectedProfile,
-        workspace,
-      });
-      const launchContract = executionLaunchContractFactory.create({
-        loggingContext,
-        prompt: preparedPrompt.prompt,
-        selectedProfile,
-        workspace,
-      });
-
-      await logStep({
-        action: "launch-contract-materialized",
-        details: {
-          handlerType: launchContract.handler.type,
-          image: launchContract.environment.image,
-          profileId: selectedProfile.id,
-          workspaceRoot: launchContract.environment.workspaceRoot,
-          workspacePath: launchContract.environment.workspacePath,
-        },
-        loggingContext,
-        message: `Materialized launch contract for profile ${selectedProfile.id}.`,
-        stage: "execution-preparation",
-      });
-
-      const deadlineMs = Date.now() + (launchContract.environment.timeoutSec * 1000);
       try {
-        await runHostScript({
-          deadlineMs,
-          launchContract,
+        const preparedPrompt = await executionPromptMaterializer.materialize({
+          event,
+          hostAttributes,
           loggingContext,
-          profileId: selectedProfile.id,
+          selectedProfile,
+          workspace,
         });
-      } catch (error) {
-        const typedError = /** @type {{ code?: string|number, stderr?: string, stdout?: string, killed?: boolean, signal?: string }} */ (error);
+        const launchContract = executionLaunchContractFactory.create({
+          loggingContext,
+          prompt: preparedPrompt.prompt,
+          selectedProfile,
+          workspace,
+        });
+
         await logStep({
-          action: "host-script-failed",
+          action: "launch-contract-materialized",
           details: {
-            command: launchContract.environment.hostScript ?? "",
-            error: error instanceof Error ? error.message : String(error),
-            eventId: loggingContext.eventId,
-            exitCode: typedError.code ?? null,
+            handlerType: launchContract.handler.type,
+            image: launchContract.environment.image,
             profileId: selectedProfile.id,
+            workspaceRoot: launchContract.environment.workspaceRoot,
             workspacePath: launchContract.environment.workspacePath,
           },
           loggingContext,
-          message: `Failed host script for profile ${selectedProfile.id}.`,
+          message: `Materialized launch contract for profile ${selectedProfile.id}.`,
           stage: "execution-preparation",
+        });
+
+        const deadlineMs = Date.now() + (launchContract.environment.timeoutSec * 1000);
+        try {
+          await runHostScript({
+            deadlineMs,
+            launchContract,
+            loggingContext,
+            profileId: selectedProfile.id,
+          });
+        } catch (error) {
+          const typedError = /** @type {{ code?: string|number, stderr?: string, stdout?: string, killed?: boolean, signal?: string }} */ (error);
+          await logStep({
+            action: "host-script-failed",
+            details: {
+              command: launchContract.environment.hostScript ?? "",
+              error: error instanceof Error ? error.message : String(error),
+              eventId: loggingContext.eventId,
+              exitCode: typedError.code ?? null,
+              profileId: selectedProfile.id,
+              workspacePath: launchContract.environment.workspacePath,
+            },
+            loggingContext,
+            message: `Failed host script for profile ${selectedProfile.id}.`,
+            stage: "execution-preparation",
+          });
+          throw error;
+        }
+
+        const runtimeLaunchContract = {
+          ...launchContract,
+          environment: {
+            ...launchContract.environment,
+            timeoutSec: getRemainingTimeoutSec(deadlineMs),
+          },
+        };
+
+        await logStep({
+          action: "runtime-start-requested",
+          details: {
+            eventId: loggingContext.eventId,
+            profileId: selectedProfile.id,
+            repository: `${loggingContext.owner}/${loggingContext.repo}`,
+            timeoutSec: runtimeLaunchContract.environment.timeoutSec,
+            workspacePath: runtimeLaunchContract.environment.workspacePath,
+          },
+          loggingContext,
+          message: `Starting runtime for profile ${selectedProfile.id}.`,
+          stage: "execution-runtime",
+        });
+        const result = await executionRuntimeDocker.run({ launchContract: runtimeLaunchContract, loggingContext });
+        await logStep({
+          action: "runtime-completed",
+          details: {
+            eventId: loggingContext.eventId,
+            exit: result.exit,
+            profileId: selectedProfile.id,
+            repository: `${loggingContext.owner}/${loggingContext.repo}`,
+            workspacePath: runtimeLaunchContract.environment.workspacePath,
+          },
+          loggingContext,
+          message: `Completed runtime for profile ${selectedProfile.id}.`,
+          stage: "execution-runtime",
+        });
+        return result;
+      } catch (error) {
+        await cleanupWorkspace({
+          loggingContext,
+          profileId: selectedProfile.id,
+          workspacePath: workspace.workspacePath,
         });
         throw error;
       }
-
-      const runtimeLaunchContract = {
-        ...launchContract,
-        environment: {
-          ...launchContract.environment,
-          timeoutSec: getRemainingTimeoutSec(deadlineMs),
-        },
-      };
-
-      await logStep({
-        action: "runtime-start-requested",
-        details: {
-          eventId: loggingContext.eventId,
-          profileId: selectedProfile.id,
-          repository: `${loggingContext.owner}/${loggingContext.repo}`,
-          timeoutSec: runtimeLaunchContract.environment.timeoutSec,
-          workspacePath: runtimeLaunchContract.environment.workspacePath,
-        },
-        loggingContext,
-        message: `Starting runtime for profile ${selectedProfile.id}.`,
-        stage: "execution-runtime",
-      });
-      const result = await executionRuntimeDocker.run({ launchContract: runtimeLaunchContract, loggingContext });
-      await logStep({
-        action: "runtime-completed",
-        details: {
-          eventId: loggingContext.eventId,
-          exit: result.exit,
-          profileId: selectedProfile.id,
-          repository: `${loggingContext.owner}/${loggingContext.repo}`,
-          workspacePath: runtimeLaunchContract.environment.workspacePath,
-        },
-        loggingContext,
-        message: `Completed runtime for profile ${selectedProfile.id}.`,
-        stage: "execution-runtime",
-      });
-      return result;
     };
   }
 }

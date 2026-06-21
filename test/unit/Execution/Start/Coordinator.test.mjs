@@ -71,6 +71,9 @@ test("execution start coordinator prepares workspace and materializes launch con
           workspacePath: "/tmp/github-flows/ws/octocat/demo/issues/evt-1",
         };
       },
+      async cleanup(entry) {
+        calls.push({ method: "cleanup", entry });
+      },
     },
   });
 
@@ -135,9 +138,14 @@ test("execution start coordinator prepares workspace and materializes launch con
 });
 
 test("execution start coordinator requires profile runtime image", async () => {
+  const calls = [];
   const coordinator = new Github_Flows_Execution_Start_Coordinator({
     childProcess: { spawn() { throw new Error("must not spawn"); } },
-    eventLog: { async logEventProcessing() {} },
+    eventLog: {
+      async logEventProcessing(entry) {
+        calls.push({ method: "logEventProcessing", entry });
+      },
+    },
     executionLaunchContractFactory: {
       create() {
         throw new Error("Missing required launch field: execution.runtime.image");
@@ -156,6 +164,9 @@ test("execution start coordinator requires profile runtime image", async () => {
     executionWorkspacePreparer: {
       async prepareByGithubEvent() {
         return { workspaceRoot: "/tmp/github-flows", workspacePath: "/tmp/github-flows/ws" };
+      },
+      async cleanup(entry) {
+        calls.push({ method: "cleanup", entry });
       },
     },
   });
@@ -181,6 +192,7 @@ test("execution start coordinator requires profile runtime image", async () => {
     }),
     /execution\.runtime\.image/,
   );
+  assert.deepEqual(calls.find((call) => call.method === "cleanup")?.entry, { workspacePath: "/tmp/github-flows/ws" });
 });
 
 test("execution start coordinator rejects agent profiles without promptRef before preparation", async () => {
@@ -306,6 +318,9 @@ test("execution start coordinator runs hostScript before docker runtime and redu
         calls.push({ method: "prepareByGithubEvent" });
         return { workspaceRoot: "/tmp/github-flows", workspacePath: "/tmp/github-flows/ws/octocat/demo/issues/evt-1" };
       },
+      async cleanup(entry) {
+        calls.push({ method: "cleanup", entry });
+      },
     },
   });
 
@@ -394,7 +409,14 @@ test("execution start coordinator stops before docker runtime when hostScript fa
     },
     executionPromptMaterializer: { async materialize() { return { prompt: "Solve the task.", promptBindings: {} }; } },
     executionRuntimeDocker: { async run() { throw new Error("must not run"); } },
-    executionWorkspacePreparer: { async prepareByGithubEvent() { return { workspaceRoot: "/tmp/github-flows", workspacePath: "/tmp/github-flows/ws/octocat/demo/issues/evt-1" }; } },
+    executionWorkspacePreparer: {
+      async prepareByGithubEvent() {
+        return { workspaceRoot: "/tmp/github-flows", workspacePath: "/tmp/github-flows/ws/octocat/demo/issues/evt-1" };
+      },
+      async cleanup(entry) {
+        calls.push({ method: "cleanup", entry });
+      },
+    },
   });
 
   await assert.rejects(() => coordinator.start({
@@ -418,4 +440,76 @@ test("execution start coordinator stops before docker runtime when hostScript fa
     },
   }), /host script exited with code 1/);
   assert.equal(calls.some((call) => call.method === "logEventProcessing" && call.entry.action === "host-script-failed"), true);
+  assert.deepEqual(calls.find((call) => call.method === "cleanup")?.entry, {
+    workspacePath: "/tmp/github-flows/ws/octocat/demo/issues/evt-1",
+  });
+  assert.equal(calls.some((call) => call.method === "logEventProcessing" && call.entry.action === "workspace-cleanup-completed"), true);
+});
+
+test("execution start coordinator cleans workspace when runtime fails", async () => {
+  const calls = [];
+  const coordinator = new Github_Flows_Execution_Start_Coordinator({
+    childProcess: { spawn() { throw new Error("must not spawn"); } },
+    eventLog: {
+      async logEventProcessing(entry) {
+        calls.push({ method: "logEventProcessing", entry });
+      },
+    },
+    executionLaunchContractFactory: {
+      create() {
+        return {
+          handler: { type: "agent", command: ["node"], args: ["agent.mjs"], prompt: "Solve the task." },
+          environment: {
+            dockerArgs: [],
+            hostScript: "",
+            image: "profile-image",
+            workspaceRoot: "/tmp/github-flows",
+            workspacePath: "/tmp/github-flows/ws/octocat/demo/issues/evt-1",
+            env: {},
+            timeoutSec: 99,
+          },
+        };
+      },
+    },
+    executionPromptMaterializer: { async materialize() { return { prompt: "Solve the task.", promptBindings: {} }; } },
+    executionRuntimeDocker: {
+      async run() {
+        throw new Error("docker timed out");
+      },
+    },
+    executionWorkspacePreparer: {
+      async prepareByGithubEvent() {
+        return { workspaceRoot: "/tmp/github-flows", workspacePath: "/tmp/github-flows/ws/octocat/demo/issues/evt-1" };
+      },
+      async cleanup(entry) {
+        calls.push({ method: "cleanup", entry });
+      },
+    },
+  });
+
+  await assert.rejects(() => coordinator.start({
+    event: {},
+    loggingContext: {
+      eventId: "evt-1",
+      eventType: "issues",
+      logDirectory: "/tmp/github-flows/log/run/octocat/demo/evt-1",
+      owner: "octocat",
+      repo: "demo",
+    },
+    selectedProfile: {
+      id: "a/profile.json",
+      orderKey: "a/profile.json",
+      promptRefBaseDir: "a",
+      trigger: {},
+      execution: {
+        handler: { type: "agent", command: ["node"], args: ["agent.mjs"], promptRef: "default.md" },
+        runtime: { image: "profile-image", hostScript: "", env: {}, timeoutSec: 99 },
+      },
+    },
+  }), /docker timed out/);
+
+  assert.deepEqual(calls.find((call) => call.method === "cleanup")?.entry, {
+    workspacePath: "/tmp/github-flows/ws/octocat/demo/issues/evt-1",
+  });
+  assert.equal(calls.some((call) => call.method === "logEventProcessing" && call.entry.action === "workspace-cleanup-completed"), true);
 });
