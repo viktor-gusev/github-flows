@@ -59,6 +59,7 @@ It is a concrete example of the model described in [single-event-launch.md](sing
 - `actorLogin` uses trigger-array sugar that expands into scalar candidate profiles after profile merge and before matching.
 - `handler.type` is `agent`, while `codex` remains only the concrete command being launched.
 - `runtime` contains Docker-scoped launch parameters; Docker is the mandatory execution boundary.
+- `runtime.hostScript` and `runtime.setupScript` are optional startup-preparation fields; this example shows only `setupScript`.
 - `promptVariables.required` binds mandatory prompt placeholders directly to allowed same-event sources such as `event.*`, `host.*`, and `workspace.*`.
 - `promptVariables.optional` allows explicit fallback defaults for values such as `REVIEW_LANE`.
 

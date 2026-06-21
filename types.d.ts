@@ -127,8 +127,9 @@ declare global {
     },
     runtime: {
       dockerArgs?: string[],
+      hostScript?: string,
       image: string,
-      setupScript: string,
+      setupScript?: string,
       env: Record<string, string>,
       timeoutSec: number,
     },
@@ -149,10 +150,11 @@ declare global {
   };
   type Github_Flows_Execution_Launch_Contract__Environment = {
     dockerArgs: string[],
+    hostScript?: string,
     image: string,
     workspaceRoot: string,
     workspacePath: string,
-    setupScript: string,
+    setupScript?: string,
     env: Record<string, string>,
     timeoutSec: number,
   };

@@ -94,6 +94,7 @@ In this layout:
 - the nested fragment narrows applicability to `issues/opened` in `acme/demo`
 - both fragments are merged into one merged profile for that path
 - that merged profile produces one scalar candidate profile because no trigger arrays are used here
+- `execution.runtime.hostScript` and `execution.runtime.setupScript` are both optional; omit either field when that startup step is not needed
 - `promptVariables.required` and `promptVariables.optional` may bind directly from `event.*`, `host.*`, or `workspace.*`
 - if that candidate is the most specific match, one Docker-isolated execution starts
 
