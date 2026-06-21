@@ -187,7 +187,20 @@ export default class Github_Flows_Web_Handler_Webhook {
             loggingContext,
             selectedProfile,
           });
-          if (!outcome.completed || outcome.exit !== "success") {
+          if (outcome.skipped) {
+            await eventLog.logEventProcessing({
+              action: "execution-skip",
+              component: "Github_Flows_Web_Handler_Webhook",
+              details: {
+                eventId: loggingContext.eventId,
+                profileId: selectedProfile.id,
+                reason: outcome.reason,
+              },
+              loggingContext,
+              message: `Skipped execution for selected profile ${selectedProfile.id}: ${outcome.reason}.`,
+              stage: "execution-decision",
+            });
+          } else if (!outcome.completed || outcome.exit !== "success") {
             throw new Error(`Execution runtime ended with status: ${outcome.exit}`);
           }
         } else {

@@ -593,7 +593,7 @@ test("webhook handler returns 500 if execution start fails", async () => {
   ]);
 });
 
-test("webhook handler rejects agent execution without promptRef before preparation", async () => {
+test("webhook handler skips agent execution without promptRef before preparation", async () => {
   const payload = {
     action: "opened",
     repository: {
@@ -660,7 +660,7 @@ test("webhook handler rejects agent execution without promptRef before preparati
     executionStartCoordinator: {
       async start(entry) {
         startCalls.push(entry);
-        throw new Error("must not start");
+        return { skipped: true, profileId: "issues/profile.json", reason: "missing-promptRef" };
       },
     },
     runtime: { webhookSecret: "shared-secret" },
@@ -673,15 +673,22 @@ test("webhook handler rejects agent execution without promptRef before preparati
   assert.equal(startCalls.length, 1);
   assert.equal(startCalls[0].selectedProfile.execution.handler.type, "agent");
   assert.equal(startCalls[0].selectedProfile.execution.handler.promptRef, undefined);
+  const skipLogCall = eventLogCalls.find(
+    (c) => c.method === "logEventProcessing" && c.entry.action === "execution-skip",
+  );
+  assert.ok(skipLogCall, "expected execution-skip log entry");
+  assert.equal(skipLogCall.entry.details.profileId, "issues/profile.json");
+  assert.equal(skipLogCall.entry.details.reason, "missing-promptRef");
+  assert.equal(skipLogCall.entry.stage, "execution-decision");
   assert.deepEqual(calls, [
     {
       method: "writeHead",
-      code: 500,
+      code: 202,
       headers: { "Content-Type": "application/json; charset=utf-8" },
     },
     {
       method: "end",
-      body: JSON.stringify({ error: "workspace-prepare-failed" }),
+      body: JSON.stringify({ status: "accepted" }),
     },
     { method: "complete" },
   ]);

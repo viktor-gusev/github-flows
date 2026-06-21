@@ -11,12 +11,12 @@ function asRecord(value) {
   return {};
 }
 
-function requirePromptRefForAgent(selectedProfile) {
+function checkPromptRefForAgent(selectedProfile) {
   const execution = asRecord(selectedProfile.execution);
   const handler = asRecord(execution.handler);
   if (handler.type !== "agent") return;
   if (typeof handler.promptRef === "string" && handler.promptRef.length > 0) return;
-  throw new Error(`Agent execution requires execution.handler.promptRef: ${selectedProfile.id}`);
+  return { reason: "missing-promptRef", profileId: selectedProfile.id };
 }
 
 function getRemainingTimeoutSec(deadlineMs) {
@@ -229,7 +229,21 @@ export default class Github_Flows_Execution_Start_Coordinator {
      * }} params
      */
     this.start = async function ({ event, hostAttributes = {}, loggingContext, selectedProfile }) {
-      requirePromptRefForAgent(selectedProfile);
+      const promptRefCheck = checkPromptRefForAgent(selectedProfile);
+      if (promptRefCheck) {
+        await logStep({
+          action: "execution-skip",
+          details: {
+            eventId: loggingContext.eventId,
+            profileId: promptRefCheck.profileId,
+            reason: promptRefCheck.reason,
+          },
+          loggingContext,
+          message: `Skipped agent profile ${promptRefCheck.profileId}: execution.handler.promptRef is absent.`,
+          stage: "execution-decision",
+        });
+        return { skipped: true, profileId: promptRefCheck.profileId, reason: promptRefCheck.reason };
+      }
 
       await logStep({
         action: "execution-start-requested",

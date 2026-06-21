@@ -14,7 +14,7 @@ import {
   writeProfile,
 } from "./_helpers.mjs";
 
-test("webhook ingress rejects agent profiles without promptRef before cache sync", { concurrency: false, timeout: 5000 }, async () => {
+test("webhook ingress skips agent profiles without promptRef before side effects", { concurrency: false, timeout: 5000 }, async () => {
   const workspaceRoot = await createWorkspace();
   const fakeStateDir = path.join(workspaceRoot, "fake-bin-state");
   const fakeGhDir = await installFakeGh(workspaceRoot);
@@ -89,8 +89,8 @@ test("webhook ingress rejects agent profiles without promptRef before cache sync
     await handler.handle(context);
 
     assert.deepEqual(responseCalls, [
-      { method: "writeHead", code: 500, headers: { "Content-Type": "application/json; charset=utf-8" } },
-      { method: "end", body: JSON.stringify({ error: "workspace-prepare-failed" }) },
+      { method: "writeHead", code: 202, headers: { "Content-Type": "application/json; charset=utf-8" } },
+      { method: "end", body: JSON.stringify({ status: "accepted" }) },
       { method: "complete" },
     ]);
     await assert.rejects(fs.stat(path.resolve(workspaceRoot, "cache", "repo", "octocat", "demo", ".git")));

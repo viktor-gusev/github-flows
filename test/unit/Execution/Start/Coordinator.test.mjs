@@ -195,7 +195,7 @@ test("execution start coordinator requires profile runtime image", async () => {
   assert.deepEqual(calls.find((call) => call.method === "cleanup")?.entry, { workspacePath: "/tmp/github-flows/ws" });
 });
 
-test("execution start coordinator rejects agent profiles without promptRef before preparation", async () => {
+test("execution start coordinator skips agent profiles without promptRef before preparation", async () => {
   const calls = [];
   const coordinator = new Github_Flows_Execution_Start_Coordinator({
     childProcess: { spawn() { throw new Error("must not spawn"); } },
@@ -226,29 +226,32 @@ test("execution start coordinator rejects agent profiles without promptRef befor
     },
   });
 
-  await assert.rejects(
-    coordinator.start({
-      event: {},
-      hostAttributes: {},
-      loggingContext: {
-        eventId: "evt-1",
-        eventType: "issues",
-        logDirectory: "/tmp/github-flows/log/run/octocat/demo/evt-1",
-        owner: "octocat",
-        repo: "demo",
-      },
-      selectedProfile: {
-        id: "a/profile.json",
-        orderKey: "a/profile.json",
-        promptRefBaseDir: "a",
-        trigger: {},
-        execution: { handler: { type: "agent", command: ["node"], args: [] }, runtime: {} },
-      },
-    }),
-    /execution\.handler\.promptRef/,
-  );
+  const result = await coordinator.start({
+    event: {},
+    hostAttributes: {},
+    loggingContext: {
+      eventId: "evt-1",
+      eventType: "issues",
+      logDirectory: "/tmp/github-flows/log/run/octocat/demo/evt-1",
+      owner: "octocat",
+      repo: "demo",
+    },
+    selectedProfile: {
+      id: "a/profile.json",
+      orderKey: "a/profile.json",
+      promptRefBaseDir: "a",
+      trigger: {},
+      execution: { handler: { type: "agent", command: ["node"], args: [] }, runtime: {} },
+    },
+  });
 
-  assert.deepEqual(calls, []);
+  assert.deepEqual(result, { skipped: true, profileId: "a/profile.json", reason: "missing-promptRef" });
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].method, "logEventProcessing");
+  assert.equal(calls[0].entry.action, "execution-skip");
+  assert.equal(calls[0].entry.details.profileId, "a/profile.json");
+  assert.equal(calls[0].entry.details.reason, "missing-promptRef");
+  assert.equal(calls[0].entry.stage, "execution-decision");
 });
 
 test("execution start coordinator runs hostScript before docker runtime and reduces timeout", async () => {
