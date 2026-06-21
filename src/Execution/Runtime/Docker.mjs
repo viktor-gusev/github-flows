@@ -24,7 +24,7 @@ function validateLaunchContract(contract) {
   }
 
   const typedHandler = /** @type {{ command?: unknown, args?: unknown, prompt?: unknown, type?: unknown }} */ (handler);
-  const typedEnvironment = /** @type {{ dockerArgs?: unknown, env?: unknown, image?: unknown, setupScript?: unknown, timeoutSec?: unknown, workspacePath?: unknown, workspaceRoot?: unknown }} */ (environment);
+  const typedEnvironment = /** @type {{ dockerArgs?: unknown, env?: unknown, hostScript?: unknown, image?: unknown, setupScript?: unknown, timeoutSec?: unknown, workspacePath?: unknown, workspaceRoot?: unknown }} */ (environment);
 
   if ((typeof typedEnvironment.image !== "string") || typedEnvironment.image.length === 0) {
     throw new Error("Launch contract environment.image is required.");
@@ -35,8 +35,11 @@ function validateLaunchContract(contract) {
   if ((typeof typedEnvironment.workspacePath !== "string") || typedEnvironment.workspacePath.length === 0) {
     throw new Error("Launch contract environment.workspacePath is required.");
   }
-  if (typeof typedEnvironment.setupScript !== "string") {
-    throw new Error("Launch contract environment.setupScript is required.");
+  if ((typedEnvironment.setupScript !== undefined) && (typeof typedEnvironment.setupScript !== "string")) {
+    throw new Error("Launch contract environment.setupScript must be a string when present.");
+  }
+  if ((typedEnvironment.hostScript !== undefined) && (typeof typedEnvironment.hostScript !== "string")) {
+    throw new Error("Launch contract environment.hostScript must be a string when present.");
   }
   if ((typedEnvironment.env === null) || (typeof typedEnvironment.env !== "object") || Array.isArray(typedEnvironment.env)) {
     throw new Error("Launch contract environment.env is required.");
@@ -78,6 +81,7 @@ function validateLaunchContract(contract) {
     environment: {
       dockerArgs: typedEnvironment.dockerArgs ?? [],
       env: /** @type {Record<string, string>} */ (typedEnvironment.env),
+      hostScript: typedEnvironment.hostScript,
       image: typedEnvironment.image,
       setupScript: typedEnvironment.setupScript,
       timeoutSec: typedEnvironment.timeoutSec,
@@ -88,7 +92,7 @@ function validateLaunchContract(contract) {
 }
 
 function buildShellScript(contract) {
-  const setupScript = contract.environment.setupScript.trim();
+  const setupScript = contract.environment.setupScript?.trim() ?? "";
   const command = [...contract.handler.command, ...contract.handler.args].map(quoteShell).join(" ");
   const prompt = contract.handler.prompt.length > 0
     ? `printf %s ${quoteShell(contract.handler.prompt)} | ${command}`

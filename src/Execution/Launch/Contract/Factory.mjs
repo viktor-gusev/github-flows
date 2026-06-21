@@ -34,6 +34,16 @@ function optionalStringArray(value, field) {
   return value;
 }
 
+function optionalShellString(value, field) {
+  if (value === undefined) {
+    return undefined;
+  }
+  if (typeof value !== "string") {
+    throw new Error(`Missing required launch field: ${field}`);
+  }
+  return value;
+}
+
 function requirePositiveInteger(value, field) {
   if (!Number.isInteger(value) || value <= 0) {
     throw new Error(`Missing required launch field: ${field}`);
@@ -106,7 +116,8 @@ export default class Github_Flows_Execution_Launch_Contract_Factory {
           image: requireString(runtime.image, "execution.runtime.image"),
           workspaceRoot: requireString(workspace.workspaceRoot, "workspace.workspaceRoot"),
           workspacePath: requireString(workspace.workspacePath, "workspace.workspacePath"),
-          setupScript: requireString(runtime.setupScript, "execution.runtime.setupScript"),
+          hostScript: optionalShellString(runtime.hostScript, "execution.runtime.hostScript"),
+          setupScript: optionalShellString(runtime.setupScript, "execution.runtime.setupScript"),
           env: requireStringRecord(runtime.env, "execution.runtime.env"),
           timeoutSec: requirePositiveInteger(runtime.timeoutSec, "execution.runtime.timeoutSec"),
         },

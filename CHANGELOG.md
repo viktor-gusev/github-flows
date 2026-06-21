@@ -2,6 +2,23 @@
 
 All notable changes to `@teqfw/github-flows` will be documented in this file.
 
+## 0.7.0 - 2026-06-21 - Optional startup scripts and host-side prelaunch support
+
+Release focused on separating host-side startup preparation from container-side preparation and aligning the public contract with the implemented runtime model.
+
+### Added
+
+- optional `hostScript` support in execution runtime profiles and launch contracts for host-side prelaunch preparation before Docker startup;
+- unit coverage for host-side startup execution, timeout budget carry-over, early failure handling, and optional startup-script omission;
+- validator-clean execution start coordinator source under TeqFW ESM rules.
+
+### Changed
+
+- `setupScript` is now optional in the resolved launch contract and Docker runtime path instead of being treated as mandatory startup input;
+- runtime startup now spends one shared timeout budget across optional host-side preparation, container-side preparation, and handler launch;
+- public type declarations and published docs now describe `hostScript` and `setupScript` as optional runtime fields consistently;
+- package version metadata was updated to `0.7.0`.
+
 ## 0.6.0 - 2026-06-10 - Structured prompt variables and release alignment
 
 Release focused on structured prompt-variable declarations, compatibility-preserving prompt materialization behavior, and documentation alignment across the package surfaces.

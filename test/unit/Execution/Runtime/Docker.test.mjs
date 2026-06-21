@@ -90,6 +90,7 @@ test("docker runtime starts container from launch contract", async () => {
         },
         environment: {
           dockerArgs: ["--mount", "type=bind,src=/home/codex/.codex,dst=/home/codex/.codex"],
+          hostScript: "./bin/prepare-host-access.sh",
           image: "codex-agent",
           workspaceRoot,
           workspacePath,
@@ -225,4 +226,62 @@ test("docker runtime reports timeout outcome", async () => {
   } finally {
     await fs.rm(workspaceRoot, { recursive: true, force: true });
   }
+});
+
+test("docker runtime allows missing setupScript", async () => {
+  const workspaceRoot = await fs.mkdtemp(path.join(os.tmpdir(), "github-flows-runtime-"));
+  const workspacePath = path.join(workspaceRoot, "ws", "octocat", "demo", "issues", "evt-3");
+  await fs.mkdir(workspacePath, { recursive: true });
+  const calls = [];
+  const runtime = new Github_Flows_Execution_Runtime_Docker({
+    childProcess: {
+      spawn(command, args) {
+        calls.push({ command, args });
+        const closeListeners = [];
+        const processMock = {
+          killed: false,
+          stdout: { on() {} },
+          stderr: { on() {} },
+          on(event, listener) {
+            if (event === "close") closeListeners.push(listener);
+          },
+          kill() { return true; },
+        };
+        queueMicrotask(() => {
+          closeListeners.forEach((listener) => listener(0, null));
+        });
+        return processMock;
+      },
+    },
+    eventLog: { async logEventProcessing() {} },
+    fsModule: fsSync,
+    fsPromises: fs,
+    pathModule: path,
+  });
+
+  const result = await runtime.run({
+    launchContract: {
+      handler: { command: ["echo"], args: ["hi"], prompt: "", type: "shell" },
+      environment: { dockerArgs: [], image: "codex-agent", workspaceRoot, workspacePath, env: {}, timeoutSec: 10 },
+    },
+    loggingContext: {
+      eventId: "evt-3",
+      eventType: "issues",
+      logDirectory: path.join(workspaceRoot, "log", "run", "octocat", "demo", "evt-3"),
+      owner: "octocat",
+      repo: "demo",
+    },
+  });
+  assert.deepEqual(result, {
+    attempted: true,
+    completed: true,
+    exit: "success",
+    stderr: "",
+    stdout: "",
+  });
+  const shellScript = calls[0].args.at(-1);
+  assert.equal(typeof shellScript, "string");
+  assert.doesNotMatch(shellScript, /undefined/);
+  assert.doesNotMatch(shellScript, /test -d repo/);
+  await fs.rm(workspaceRoot, { recursive: true, force: true });
 });

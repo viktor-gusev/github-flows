@@ -29,6 +29,7 @@ test("launch contract factory creates fully resolved contract from explicit prof
         },
         runtime: {
           dockerArgs: ["--mount", "type=bind,src=/home/codex/.codex,dst=/home/codex/.codex"],
+          hostScript: "./bin/prepare-host-access.sh",
           image: "codex-agent",
           setupScript: "test -d repo",
           env: { DEMO: "1" },
@@ -58,6 +59,7 @@ test("launch contract factory creates fully resolved contract from explicit prof
     },
     environment: {
       dockerArgs: ["--mount", "type=bind,src=/home/codex/.codex,dst=/home/codex/.codex"],
+      hostScript: "./bin/prepare-host-access.sh",
       image: "codex-agent",
       workspaceRoot: "/tmp/github-flows",
       workspacePath: "/tmp/github-flows/ws/octocat/demo/issues/evt-1",
@@ -94,7 +96,6 @@ test("launch contract factory fails when explicit fields are missing", () => {
         runtime: {
           dockerArgs: ["--mount"],
           image: "codex-agent",
-          setupScript: "test -d repo",
           env: { DEMO: "1" },
           timeoutSec: 120,
         },
@@ -144,4 +145,46 @@ test("launch contract factory rejects unsupported handler type", () => {
       workspacePath: "/tmp/github-flows/ws/octocat/demo/issues/evt-1",
     },
   }), /execution\.handler\.type/);
+});
+
+test("launch contract factory allows missing or empty startup scripts", () => {
+  const factory = new Github_Flows_Execution_Launch_Contract_Factory({ eventLog: {} });
+
+  const contract = factory.create({
+    loggingContext: {
+      eventId: "evt-1",
+      eventType: "issues",
+      logDirectory: "/tmp/github-flows/log/run/octocat/demo/evt-1",
+      owner: "octocat",
+      repo: "demo",
+    },
+    prompt: "Solve the task.",
+    selectedProfile: {
+      id: "issues/profile.json",
+      orderKey: "issues/profile.json",
+      promptRefBaseDir: "issues",
+      trigger: { event: "issues" },
+      execution: {
+        handler: {
+          type: "agent",
+          command: ["node", "bin/agent.mjs"],
+          args: ["--mode", "run"],
+          promptRef: "default.md",
+        },
+        runtime: {
+          image: "codex-agent",
+          hostScript: "",
+          env: { DEMO: "1" },
+          timeoutSec: 120,
+        },
+      },
+    },
+    workspace: {
+      workspaceRoot: "/tmp/github-flows",
+      workspacePath: "/tmp/github-flows/ws/octocat/demo/issues/evt-1",
+    },
+  });
+
+  assert.deepEqual(contract.environment.hostScript, "");
+  assert.equal(contract.environment.setupScript, undefined);
 });
