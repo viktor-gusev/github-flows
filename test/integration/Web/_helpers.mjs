@@ -308,6 +308,7 @@ export const handleWebhookEvent = async function ({
   const { context, responseCalls } = createResponseRecorder();
   context.request = createRequest(JSON.stringify(payload), secret, { deliveryId, event });
   await handler.handle(context);
+  await handler._executionPromise;
   return responseCalls;
 };
 

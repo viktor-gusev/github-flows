@@ -179,14 +179,7 @@ export default class Github_Flows_Web_Handler_Webhook {
           decision: selectedProfile ? "start" : "skip",
         });
 
-        if (selectedProfile) {
-          await eventLog.persistEffectiveProfile({ loggingContext, selectedProfile });
-          const outcome = await executionStartCoordinator.start({
-            event: payload,
-            hostAttributes: attributeResolution.hostAttributes,
-            loggingContext,
-            selectedProfile,
-          });
+        const logAsyncOutcome = async function (outcome) {
           if (outcome.skipped) {
             await eventLog.logEventProcessing({
               action: "execution-skip",
@@ -200,9 +193,27 @@ export default class Github_Flows_Web_Handler_Webhook {
               message: `Skipped execution for selected profile ${selectedProfile.id}: ${outcome.reason}.`,
               stage: "execution-decision",
             });
-          } else if (!outcome.completed || outcome.exit !== "success") {
-            throw new Error(`Execution runtime ended with status: ${outcome.exit}`);
+            return;
           }
+          if (!outcome.completed || outcome.exit !== "success") {
+            await eventLog.logEventProcessing({
+              action: "execution-failed",
+              component: "Github_Flows_Web_Handler_Webhook",
+              details: {
+                eventId: loggingContext.eventId,
+                profileId: selectedProfile.id,
+                exit: outcome.exit,
+                error: `Execution runtime ended with status: ${outcome.exit}`,
+              },
+              loggingContext,
+              message: `Execution runtime ended with status ${outcome.exit} for profile ${selectedProfile.id}.`,
+              stage: "execution-runtime",
+            });
+          }
+        };
+
+        if (selectedProfile) {
+          await eventLog.persistEffectiveProfile({ loggingContext, selectedProfile });
         } else {
           await eventLog.logEventProcessing({
             action: "execution-skip",
@@ -214,6 +225,34 @@ export default class Github_Flows_Web_Handler_Webhook {
             loggingContext,
             message: `Skipped execution for admitted event ${loggingContext.eventId}.`,
             stage: "execution-decision",
+          });
+        }
+
+        eventLog.logIngress({ outcome: "admitted" });
+        if (!response.headersSent) {
+          response.writeHead(202, { "Content-Type": "application/json; charset=utf-8" });
+        }
+        response.end(JSON.stringify({ status: "accepted" }));
+        context.complete();
+
+        if (selectedProfile) {
+          this._executionPromise = executionStartCoordinator.start({
+            event: payload,
+            hostAttributes: attributeResolution.hostAttributes,
+            loggingContext,
+            selectedProfile,
+          }).then(logAsyncOutcome).catch(async (error) => {
+            await eventLog.logEventProcessing({
+              action: "execution-failed",
+              component: "Github_Flows_Web_Handler_Webhook",
+              details: {
+                error: error instanceof Error ? error.message : String(error),
+                stack: error instanceof Error ? error.stack : undefined,
+              },
+              loggingContext,
+              message: `Execution failed for admitted event ${loggingContext.eventId}.`,
+              stage: "execution-runtime",
+            });
           });
         }
       } catch (error) {
@@ -235,13 +274,6 @@ export default class Github_Flows_Web_Handler_Webhook {
         context.complete();
         return;
       }
-
-      eventLog.logIngress({ outcome: "admitted" });
-      if (!response.headersSent) {
-        response.writeHead(202, { "Content-Type": "application/json; charset=utf-8" });
-      }
-      response.end(JSON.stringify({ status: "accepted" }));
-      context.complete();
     };
   }
 }

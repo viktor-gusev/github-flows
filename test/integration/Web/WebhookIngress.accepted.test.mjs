@@ -95,6 +95,7 @@ test("webhook ingress accepts an agent profile with promptRef", { concurrency: f
     };
 
     await handler.handle(context);
+    await handler._executionPromise;
 
     assert.deepEqual(responseCalls, [
       { method: "writeHead", code: 202, headers: { "Content-Type": "application/json; charset=utf-8" } },
@@ -204,6 +205,7 @@ test("webhook ingress materializes prompt variables from host-provided attribute
     };
 
     await handler.handle(context);
+    await handler._executionPromise;
 
     assert.deepEqual(responseCalls, [
       { method: "writeHead", code: 202, headers: { "Content-Type": "application/json; charset=utf-8" } },

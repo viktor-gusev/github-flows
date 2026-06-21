@@ -87,6 +87,7 @@ test("webhook ingress skips agent profiles without promptRef before side effects
     };
 
     await handler.handle(context);
+    await handler._executionPromise;
 
     assert.deepEqual(responseCalls, [
       { method: "writeHead", code: 202, headers: { "Content-Type": "application/json; charset=utf-8" } },
