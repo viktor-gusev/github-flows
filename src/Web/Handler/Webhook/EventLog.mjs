@@ -239,6 +239,7 @@ export default class Github_Flows_Web_Handler_Webhook_EventLog {
         pathname,
         headers: selectHeaders(request.headers),
         body: parseBody(body),
+        loggedAt: new Date().toISOString(),
       });
     };
 
@@ -248,6 +249,7 @@ export default class Github_Flows_Web_Handler_Webhook_EventLog {
         stage: "ingress",
         outcome,
         reason: sanitizeValue(reason),
+        loggedAt: new Date().toISOString(),
       });
     };
 
@@ -258,14 +260,12 @@ export default class Github_Flows_Web_Handler_Webhook_EventLog {
         resolutionInputs: sanitizeValue(resolutionInputs),
         decisionBasis: sanitizeValue(decisionBasis),
         decision,
+        loggedAt: new Date().toISOString(),
       };
 
       emit(entry);
       if (loggingContext) {
-        await appendEvent(loggingContext, {
-          ...entry,
-          loggedAt: new Date().toISOString(),
-        });
+        await appendEvent(loggingContext, entry);
       }
     };
 

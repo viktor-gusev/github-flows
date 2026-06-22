@@ -42,6 +42,7 @@ export default class Github_Flows_Logger {
         action,
         details,
         message,
+        loggedAt: new Date().toISOString(),
       });
     };
   }

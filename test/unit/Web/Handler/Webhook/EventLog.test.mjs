@@ -54,30 +54,30 @@ test("event logger records bounded inbound snapshot without authentication heade
     ),
   });
 
-  assert.deepEqual(entries, [
-    {
-      type: "github-webhook",
-      stage: "reception",
-      pathname: "/webhooks/github",
-      headers: {
-        "x-github-event": "issues",
-        "x-github-delivery": "12345",
-      },
-      body: {
-        action: "opened",
-        repository: {
-          full_name: "owner/repo",
-          description: "...",
-          owner: {
-            login: "octocat",
-            profile: {
-              bio: "...",
-            },
-          },
+  assert.equal(entries.length, 1);
+  const receptionEntry = entries[0];
+  assert.equal(receptionEntry.type, "github-webhook");
+  assert.equal(receptionEntry.stage, "reception");
+  assert.equal(receptionEntry.pathname, "/webhooks/github");
+  assert.deepEqual(receptionEntry.headers, {
+    "x-github-event": "issues",
+    "x-github-delivery": "12345",
+  });
+  assert.deepEqual(receptionEntry.body, {
+    action: "opened",
+    repository: {
+      full_name: "owner/repo",
+      description: "...",
+      owner: {
+        login: "octocat",
+        profile: {
+          bio: "...",
         },
       },
     },
-  ]);
+  });
+  assert.equal(typeof receptionEntry.loggedAt, "string");
+  assert.match(receptionEntry.loggedAt, /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/);
 });
 
 test("event logger records bounded decision trace", async () => {
@@ -109,33 +109,33 @@ test("event logger records bounded decision trace", async () => {
     decision: "start",
   });
 
-  assert.deepEqual(entries, [
-    {
-      type: "github-webhook",
-      stage: "decision-trace",
-      resolutionInputs: {
-        eventName: "pull_request",
-        repository: "owner/repo",
-        installation: {
-          account: {
-            login: "octocat",
-            note: "...",
-          },
-        },
+  assert.equal(entries.length, 1);
+  const decisionEntry = entries[0];
+  assert.equal(decisionEntry.type, "github-webhook");
+  assert.equal(decisionEntry.stage, "decision-trace");
+  assert.deepEqual(decisionEntry.resolutionInputs, {
+    eventName: "pull_request",
+    repository: "owner/repo",
+    installation: {
+      account: {
+        login: "octocat",
+        note: "...",
       },
-      decisionBasis: {
-        start: true,
-        prompt: "...",
-        match: {
-          repository: {
-            name: "repo",
-            owner: "owner",
-          },
-        },
-      },
-      decision: "start",
     },
-  ]);
+  });
+  assert.deepEqual(decisionEntry.decisionBasis, {
+    start: true,
+    prompt: "...",
+    match: {
+      repository: {
+        name: "repo",
+        owner: "owner",
+      },
+    },
+  });
+  assert.equal(decisionEntry.decision, "start");
+  assert.equal(typeof decisionEntry.loggedAt, "string");
+  assert.match(decisionEntry.loggedAt, /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/);
 });
 
 test("event logger preserves nested structure in default console output", async () => {
