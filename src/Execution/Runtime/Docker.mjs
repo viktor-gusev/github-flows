@@ -4,6 +4,7 @@
  * @description Runs one resolved launch contract inside an isolated Docker container.
  */
 const CONTAINER_WORKSPACE_PATH = "/workspace";
+const CONTAINER_REPO_PATH = "/workspace/repo";
 const SUPPORTED_HANDLER_TYPES = new Set(["agent", "shell"]);
 
 function quoteShell(value) {
@@ -97,10 +98,12 @@ function buildShellScript(contract) {
   const prompt = contract.handler.prompt.length > 0
     ? `printf %s ${quoteShell(contract.handler.prompt)} | ${command}`
     : command;
+  const workdir = contract.handler.type === "agent" ? CONTAINER_REPO_PATH : CONTAINER_WORKSPACE_PATH;
   return [
     "set -euo pipefail",
     `cd ${quoteShell(CONTAINER_WORKSPACE_PATH)}`,
     setupScript,
+    `cd ${quoteShell(workdir)}`,
     prompt,
   ].filter((line) => line.length > 0).join("\n");
 }
@@ -261,6 +264,11 @@ export default class Github_Flows_Execution_Runtime_Docker {
       const contract = validateLaunchContract(launchContract);
       await fsPromises.stat(contract.environment.workspaceRoot);
       await fsPromises.stat(contract.environment.workspacePath);
+      const repoDir = pathModule.resolve(contract.environment.workspacePath, "repo");
+      await fsPromises.stat(repoDir);
+      if (!repoDir.startsWith(contract.environment.workspacePath + pathModule.sep) && repoDir !== contract.environment.workspacePath) {
+        throw new Error(`Repository directory is not located under the execution workspace: ${repoDir}`);
+      }
       const emit = async function (action, message, details) {
         logger?.logComponentAction?.({
           component: "Github_Flows_Execution_Runtime_Docker",

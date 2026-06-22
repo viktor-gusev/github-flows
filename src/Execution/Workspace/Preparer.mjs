@@ -99,6 +99,22 @@ async function assertWorkspaceIsAbsent(fsPromises, target) {
   throw new Error(`Execution workspace already exists: ${target}`);
 }
 
+/* Creates the execution workspace directory with atomic ownership semantics. */
+async function createExecutionDir(fsPromises, pathModule, workspacePath) {
+  await assertWorkspaceIsAbsent(fsPromises, workspacePath);
+  const parentDir = pathModule.dirname(workspacePath);
+  await fsPromises.mkdir(parentDir, { recursive: true });
+  try {
+    await fsPromises.mkdir(workspacePath);
+  } catch (error) {
+    // @ts-ignore
+    if (error?.code === "EEXIST") {
+      throw new Error(`Execution workspace already exists: ${workspacePath}`);
+    }
+    throw error;
+  }
+}
+
 /* Removes an execution workspace directory recursively. */
 async function removeWorkspace(fsPromises, target) {
   await fsPromises.rm(target, { recursive: true, force: true });
@@ -202,8 +218,7 @@ export default class Github_Flows_Execution_Workspace_Preparer {
       const cacheEntry = await repoCacheManager.syncByGithubEvent({ event });
 
       try {
-        await assertWorkspaceIsAbsent(fsPromises, workspacePath);
-        await fsPromises.mkdir(workspacePath, { recursive: true });
+        await createExecutionDir(fsPromises, pathModule, workspacePath);
         logger?.logComponentAction?.({
           component: "Github_Flows_Execution_Workspace_Preparer",
           action: "workspace-create",

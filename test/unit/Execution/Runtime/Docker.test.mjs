@@ -11,6 +11,7 @@ test("docker runtime starts container from launch contract", async () => {
   const workspaceRoot = await fs.mkdtemp(path.join(os.tmpdir(), "github-flows-runtime-"));
   const workspacePath = path.join(workspaceRoot, "ws", "octocat", "demo", "issues", "evt-1");
   await fs.mkdir(workspacePath, { recursive: true });
+  await fs.mkdir(path.join(workspacePath, "repo"), { recursive: true });
   const calls = [];
   const logs = [];
   const observedStdout = [];
@@ -118,7 +119,7 @@ test("docker runtime starts container from launch contract", async () => {
     assert.equal(calls.length, 1);
     assert.equal(calls[0].command, "docker");
     assert.deepEqual(calls[0].options, { stdio: ["ignore", "pipe", "pipe"] });
-    assert.deepEqual(calls[0].args.slice(0, 11), [
+  assert.deepEqual(calls[0].args.slice(0, 11), [
       "run",
       "--rm",
       "--init",
@@ -136,6 +137,7 @@ test("docker runtime starts container from launch contract", async () => {
     assert.equal(calls[0].args[13], "-lc");
     assert.match(calls[0].args[14], /cd '\/workspace'/);
     assert.match(calls[0].args[14], /test -d repo/);
+    assert.match(calls[0].args[14], /cd '\/workspace\/repo'/);
     assert.match(calls[0].args[14], /printf %s 'Solve the task\.'/);
     assert.equal(logs[0].action, "docker-run-start");
     assert.equal(logs[1].archival, true);
@@ -161,6 +163,7 @@ test("docker runtime reports timeout outcome", async () => {
   const workspaceRoot = await fs.mkdtemp(path.join(os.tmpdir(), "github-flows-runtime-"));
   const workspacePath = path.join(workspaceRoot, "ws", "octocat", "demo", "issues", "evt-2");
   await fs.mkdir(workspacePath, { recursive: true });
+  await fs.mkdir(path.join(workspacePath, "repo"), { recursive: true });
   const runtime = new Github_Flows_Execution_Runtime_Docker({
     childProcess: {
       spawn() {
@@ -232,6 +235,7 @@ test("docker runtime allows missing setupScript", async () => {
   const workspaceRoot = await fs.mkdtemp(path.join(os.tmpdir(), "github-flows-runtime-"));
   const workspacePath = path.join(workspaceRoot, "ws", "octocat", "demo", "issues", "evt-3");
   await fs.mkdir(workspacePath, { recursive: true });
+  await fs.mkdir(path.join(workspacePath, "repo"), { recursive: true });
   const calls = [];
   const runtime = new Github_Flows_Execution_Runtime_Docker({
     childProcess: {
@@ -284,4 +288,190 @@ test("docker runtime allows missing setupScript", async () => {
   assert.doesNotMatch(shellScript, /undefined/);
   assert.doesNotMatch(shellScript, /test -d repo/);
   await fs.rm(workspaceRoot, { recursive: true, force: true });
+});
+
+test("docker runtime fails before container creation when repoDir is missing", async () => {
+  const workspaceRoot = await fs.mkdtemp(path.join(os.tmpdir(), "github-flows-runtime-"));
+  const workspacePath = path.join(workspaceRoot, "ws", "octocat", "demo", "issues", "evt-preflight-1");
+  await fs.mkdir(workspacePath, { recursive: true });
+  const spawnCalls = [];
+
+  const runtime = new Github_Flows_Execution_Runtime_Docker({
+    childProcess: {
+      spawn(command, args) {
+        spawnCalls.push({ command, args });
+        return { stdout: { on() {} }, stderr: { on() {} }, on() {}, kill() {} };
+      },
+    },
+    eventLog: { async logEventProcessing() {} },
+    fsModule: fsSync,
+    fsPromises: fs,
+    pathModule: path,
+  });
+
+  try {
+    await assert.rejects(
+      runtime.run({
+        launchContract: {
+          handler: { command: ["echo"], args: ["hi"], prompt: "", type: "shell" },
+          environment: { dockerArgs: [], image: "codex-agent", workspaceRoot, workspacePath, env: {}, timeoutSec: 10 },
+        },
+        loggingContext: {
+          eventId: "evt-preflight-1",
+          eventType: "issues",
+          logDirectory: path.join(workspaceRoot, "log", "run", "octocat", "demo", "evt-preflight-1"),
+          owner: "octocat",
+          repo: "demo",
+        },
+      }),
+      /ENOENT/,
+    );
+    assert.equal(spawnCalls.length, 0);
+  } finally {
+    await fs.rm(workspaceRoot, { recursive: true, force: true });
+  }
+});
+
+test("docker runtime fails before container creation when workspacePath is missing", async () => {
+  const workspaceRoot = await fs.mkdtemp(path.join(os.tmpdir(), "github-flows-runtime-"));
+  const workspacePath = path.join(workspaceRoot, "ws", "octocat", "demo", "issues", "evt-preflight-2");
+  const spawnCalls = [];
+
+  const runtime = new Github_Flows_Execution_Runtime_Docker({
+    childProcess: {
+      spawn(command, args) {
+        spawnCalls.push({ command, args });
+        return { stdout: { on() {} }, stderr: { on() {} }, on() {}, kill() {} };
+      },
+    },
+    eventLog: { async logEventProcessing() {} },
+    fsModule: fsSync,
+    fsPromises: fs,
+    pathModule: path,
+  });
+
+  try {
+    await assert.rejects(
+      runtime.run({
+        launchContract: {
+          handler: { command: ["echo"], args: ["hi"], prompt: "", type: "shell" },
+          environment: { dockerArgs: [], image: "codex-agent", workspaceRoot, workspacePath, env: {}, timeoutSec: 10 },
+        },
+        loggingContext: {
+          eventId: "evt-preflight-2",
+          eventType: "issues",
+          logDirectory: path.join(workspaceRoot, "log", "run", "octocat", "demo", "evt-preflight-2"),
+          owner: "octocat",
+          repo: "demo",
+        },
+      }),
+      /ENOENT/,
+    );
+    assert.equal(spawnCalls.length, 0);
+  } finally {
+    await fs.rm(workspaceRoot, { recursive: true, force: true });
+  }
+});
+
+test("docker runtime starts shell handler from runtimeWorkdir, not agentWorkdir", async () => {
+  const workspaceRoot = await fs.mkdtemp(path.join(os.tmpdir(), "github-flows-runtime-"));
+  const workspacePath = path.join(workspaceRoot, "ws", "octocat", "demo", "issues", "evt-shell-workdir");
+  await fs.mkdir(workspacePath, { recursive: true });
+  await fs.mkdir(path.join(workspacePath, "repo"), { recursive: true });
+  const calls = [];
+
+  const runtime = new Github_Flows_Execution_Runtime_Docker({
+    childProcess: {
+      spawn(command, args) {
+        calls.push({ command, args });
+        const closeListeners = [];
+        const processMock = {
+          killed: false,
+          stdout: { on() {} },
+          stderr: { on() {} },
+          on(event, listener) { if (event === "close") closeListeners.push(listener); },
+          kill() { return true; },
+        };
+        queueMicrotask(() => { closeListeners.forEach((listener) => listener(0, null)); });
+        return processMock;
+      },
+    },
+    eventLog: { async logEventProcessing() {} },
+    fsModule: fsSync,
+    fsPromises: fs,
+    pathModule: path,
+  });
+
+  try {
+    await runtime.run({
+      launchContract: {
+        handler: { command: ["echo"], args: ["hi"], prompt: "", type: "shell" },
+        environment: { dockerArgs: [], image: "codex-agent", workspaceRoot, workspacePath, env: {}, timeoutSec: 10 },
+      },
+      loggingContext: {
+        eventId: "evt-shell-workdir",
+        eventType: "issues",
+        logDirectory: path.join(workspaceRoot, "log", "run", "octocat", "demo", "evt-shell-workdir"),
+        owner: "octocat",
+        repo: "demo",
+      },
+    });
+    const shellScript = calls[0].args.at(-1);
+    assert.match(shellScript, /cd '\/workspace'\n/);
+    assert.doesNotMatch(shellScript, /cd '\/workspace\/repo'/);
+  } finally {
+    await fs.rm(workspaceRoot, { recursive: true, force: true });
+  }
+});
+
+test("docker runtime starts agent handler from agentWorkdir", async () => {
+  const workspaceRoot = await fs.mkdtemp(path.join(os.tmpdir(), "github-flows-runtime-"));
+  const workspacePath = path.join(workspaceRoot, "ws", "octocat", "demo", "issues", "evt-agent-workdir");
+  await fs.mkdir(workspacePath, { recursive: true });
+  await fs.mkdir(path.join(workspacePath, "repo"), { recursive: true });
+  const calls = [];
+
+  const runtime = new Github_Flows_Execution_Runtime_Docker({
+    childProcess: {
+      spawn(command, args) {
+        calls.push({ command, args });
+        const closeListeners = [];
+        const processMock = {
+          killed: false,
+          stdout: { on() {} },
+          stderr: { on() {} },
+          on(event, listener) { if (event === "close") closeListeners.push(listener); },
+          kill() { return true; },
+        };
+        queueMicrotask(() => { closeListeners.forEach((listener) => listener(0, null)); });
+        return processMock;
+      },
+    },
+    eventLog: { async logEventProcessing() {} },
+    fsModule: fsSync,
+    fsPromises: fs,
+    pathModule: path,
+  });
+
+  try {
+    await runtime.run({
+      launchContract: {
+        handler: { command: ["node"], args: ["agent.mjs"], prompt: "", type: "agent" },
+        environment: { dockerArgs: [], image: "codex-agent", workspaceRoot, workspacePath, env: {}, timeoutSec: 10 },
+      },
+      loggingContext: {
+        eventId: "evt-agent-workdir",
+        eventType: "issues",
+        logDirectory: path.join(workspaceRoot, "log", "run", "octocat", "demo", "evt-agent-workdir"),
+        owner: "octocat",
+        repo: "demo",
+      },
+    });
+    const shellScript = calls[0].args.at(-1);
+    assert.match(shellScript, /cd '\/workspace'/);
+    assert.match(shellScript, /cd '\/workspace\/repo'/);
+    assert.match(shellScript, /'node' 'agent\.mjs'/);
+  } finally {
+    await fs.rm(workspaceRoot, { recursive: true, force: true });
+  }
 });

@@ -516,3 +516,141 @@ test("execution start coordinator cleans workspace when runtime fails", async ()
   });
   assert.equal(calls.some((call) => call.method === "logEventProcessing" && call.entry.action === "workspace-cleanup-completed"), true);
 });
+
+test("execution start coordinator rejects duplicate eventId and does not start Docker runtime", async () => {
+  const calls = [];
+  const coordinator = new Github_Flows_Execution_Start_Coordinator({
+    childProcess: { spawn() { throw new Error("must not spawn"); } },
+    eventLog: {
+      async logEventProcessing(entry) {
+        calls.push({ method: "logEventProcessing", entry });
+      },
+    },
+    executionLaunchContractFactory: {
+      create() { throw new Error("must not create"); },
+    },
+    executionPromptMaterializer: {
+      async materialize() { throw new Error("must not materialize"); },
+    },
+    executionRuntimeDocker: {
+      async run() { throw new Error("must not run"); },
+    },
+    executionWorkspacePreparer: {
+      async prepareByGithubEvent() {
+        throw new Error("Execution workspace already exists: /tmp/github-flows/ws/octocat/demo/issues/evt-1");
+      },
+      async cleanup(entry) {
+        calls.push({ method: "cleanup", entry });
+      },
+    },
+  });
+
+  await assert.rejects(
+    coordinator.start({
+      event: {},
+      loggingContext: {
+        eventId: "evt-1",
+        eventType: "issues",
+        logDirectory: "/tmp/github-flows/log/run/octocat/demo/evt-1",
+        owner: "octocat",
+        repo: "demo",
+      },
+      selectedProfile: {
+        id: "a/profile.json",
+        orderKey: "a/profile.json",
+        promptRefBaseDir: "a",
+        trigger: {},
+        execution: {
+          handler: { type: "agent", command: ["node"], args: ["agent.mjs"], promptRef: "default.md" },
+          runtime: { image: "profile-image", env: {}, timeoutSec: 99 },
+        },
+      },
+    }),
+    /already exists/,
+  );
+  assert.equal(calls.some((call) => call.method === "logEventProcessing" && call.entry.action === "workspace-prepare-failed"), true);
+  assert.equal(calls.some((call) => call.method === "cleanup"), false);
+});
+
+test("execution start coordinator preserves workspace after successful execution", async () => {
+  const calls = [];
+  const coordinator = new Github_Flows_Execution_Start_Coordinator({
+    childProcess: {
+      spawn() {
+        const closeListeners = [];
+        const processMock = {
+          killed: false,
+          stdout: { on() {} },
+          stderr: { on() {} },
+          on(event, listener) { if (event === "close") closeListeners.push(listener); },
+          kill() { return true; },
+        };
+        queueMicrotask(() => { closeListeners.forEach((listener) => listener(0, null)); });
+        return processMock;
+      },
+    },
+    eventLog: {
+      async logEventProcessing(entry) {
+        calls.push({ method: "logEventProcessing", entry });
+      },
+    },
+    executionLaunchContractFactory: {
+      create() {
+        calls.push({ method: "create" });
+        return {
+          handler: { type: "agent", command: ["node"], args: ["agent.mjs"], prompt: "Run." },
+          environment: {
+            dockerArgs: [],
+            image: "profile-image",
+            workspaceRoot: "/tmp/github-flows",
+            workspacePath: "/tmp/github-flows/ws/octocat/demo/issues/evt-1",
+            env: {},
+            timeoutSec: 99,
+          },
+        };
+      },
+    },
+    executionPromptMaterializer: {
+      async materialize() { return { prompt: "Run.", promptBindings: {} }; },
+    },
+    executionRuntimeDocker: {
+      async run() { return { attempted: true, completed: true, exit: "success", stderr: "", stdout: "" }; },
+    },
+    executionWorkspacePreparer: {
+      async prepareByGithubEvent() {
+        return {
+          workspaceRoot: "/tmp/github-flows",
+          workspacePath: "/tmp/github-flows/ws/octocat/demo/issues/evt-1",
+        };
+      },
+      async cleanup(entry) {
+        calls.push({ method: "cleanup", entry });
+      },
+    },
+  });
+
+  await coordinator.start({
+    event: {},
+    loggingContext: {
+      eventId: "evt-1",
+      eventType: "issues",
+      logDirectory: "/tmp/github-flows/log/run/octocat/demo/evt-1",
+      owner: "octocat",
+      repo: "demo",
+    },
+    selectedProfile: {
+      id: "a/profile.json",
+      orderKey: "a/profile.json",
+      promptRefBaseDir: "a",
+      trigger: {},
+      execution: {
+        handler: { type: "agent", command: ["node"], args: ["agent.mjs"], promptRef: "default.md" },
+        runtime: { image: "profile-image", env: {}, timeoutSec: 99 },
+      },
+    },
+  });
+
+  assert.equal(calls.some((call) => call.method === "logEventProcessing" && call.entry.action === "runtime-completed"), true);
+  assert.equal(calls.some((call) => call.method === "cleanup"), false);
+  assert.equal(calls.some((call) => call.method === "logEventProcessing" && call.entry.action === "workspace-cleanup-started"), false);
+});
